@@ -4,10 +4,10 @@
 # The app must look identical for everyone who opens the link.
 [theme]
 base = "light"
-primaryColor = "#d2600e"
-backgroundColor = "#e9e7d2"
-secondaryBackgroundColor = "#f3f1e2"
-textColor = "#231a12"
+primaryColor = "#12752f"
+backgroundColor = "#f2efe6"
+secondaryBackgroundColor = "#ece8dc"
+textColor = "#14140f"
 font = "monospace"
 
 [browser]

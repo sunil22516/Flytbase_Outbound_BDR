@@ -52,37 +52,70 @@ def _apply_run_shape(accounts: int, contacts: int) -> None:
 st.markdown(
     """
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;600&display=swap');
-      .stApp { background: #e9e7d2;
-        background-image: radial-gradient(#c9c8ae 1.2px, transparent 1.2px);
-        background-size: 14px 14px; }
-      html, body, [class*="css"] { font-family: 'IBM Plex Mono', monospace; }
-      h1, h2, h3 { font-family: 'Press Start 2P', monospace !important;
-        color: #d2600e !important; line-height: 1.5 !important; }
-      h1 { font-size: 20px !important; }
-      h2 { font-size: 14px !important; }
-      h3 { font-size: 11px !important; }
+      /* Design tokens lifted from the hackathon portal: cream page, near-black
+         2px outlines, hard offset shadows, 10px radii, yellow/green/blue
+         accents, clean grotesk headings over a monospace body. */
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+      :root {
+        --paper:  #f2efe6;
+        --card:   #ffffff;
+        --card2:  #fbf9f2;
+        --ink:    #14140f;
+        --muted:  #6b6459;
+        --line:   #14140f;
+        --yellow: #f5c518;
+        --green:  #12752f;
+        --greenbg:#d9f0dc;
+        --blue:   #1f6feb;
+        --redbg:  #f7d9d2;
+        --shadow: 4px 4px 0 var(--line);
+        --r: 10px;
+      }
+
+      .stApp { background: var(--paper);
+        background-image: radial-gradient(#d8d3c4 1px, transparent 1px);
+        background-size: 22px 22px; }
+
+      html, body, [class*="css"], .stApp p, .stApp li, .stApp span {
+        font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+      }
+      h1, h2, h3 {
+        font-family: 'Instrument Sans', 'Inter', system-ui, sans-serif !important;
+        color: var(--ink) !important; letter-spacing: -0.02em !important;
+        font-weight: 700 !important; line-height: 1.15 !important;
+      }
+      h1 { font-size: 40px !important; margin-bottom: 4px !important; }
+      h2 { font-size: 21px !important; margin-top: 6px !important; }
+      h3 { font-size: 16px !important; }
+
+      /* Buttons: yellow primary in the main column, matching the portal's
+         SHOW BRIEF / SUBMIT MY BUILD treatment. */
       .stButton > button {
-        font-family: 'Press Start 2P', monospace; font-size: 9px;
-        background: #f0b31e; color: #231a12; border: 3px solid #231a12;
-        border-radius: 0; box-shadow: 4px 4px 0 #231a12; padding: 12px 16px;
+        font-family: 'JetBrains Mono', monospace !important; font-size: 12px !important;
+        font-weight: 700 !important; letter-spacing: .04em; text-transform: uppercase;
+        background: var(--yellow); color: var(--ink); border: 2px solid var(--line);
+        border-radius: var(--r); box-shadow: var(--shadow); padding: 13px 18px;
+        transition: transform .06s ease, box-shadow .06s ease;
       }
-      .stButton > button:hover { background: #1c9bd8; color: #fff; }
+      .stButton > button:hover { background: #ffd83d; color: var(--ink); }
       .stButton > button:active { transform: translate(4px, 4px); box-shadow: none; }
+      .stButton > button:focus { color: var(--ink) !important; }
+
       div[data-testid="stMetric"] {
-        background: #fbfaf2; border: 3px solid #231a12; padding: 12px;
-        box-shadow: 4px 4px 0 #231a12;
+        background: var(--card); border: 2px solid var(--line); border-radius: var(--r);
+        padding: 14px 16px; box-shadow: var(--shadow);
       }
-      /* Streamlit's default metric text is low-contrast on this cream panel,
-         so set both label and value explicitly. */
       div[data-testid="stMetric"] label,
       div[data-testid="stMetricLabel"] p {
-        color: #4e4335 !important; font-size: 11px !important;
-        text-transform: uppercase; letter-spacing: .06em; font-weight: 700 !important;
+        color: var(--muted) !important; font-size: 10.5px !important;
+        text-transform: uppercase; letter-spacing: .09em; font-weight: 700 !important;
       }
       div[data-testid="stMetricValue"] {
-        color: #d2600e !important; font-family: 'Press Start 2P', monospace !important;
-        font-size: 17px !important;
+        color: var(--ink) !important;
+        font-family: 'Instrument Sans', system-ui, sans-serif !important;
+        font-size: 30px !important; font-weight: 700 !important;
+        letter-spacing: -0.02em !important;
       }
 
       /* Every text surface gets an explicit colour. Anything left to Streamlit's
@@ -90,88 +123,104 @@ st.markdown(
          dark-mode machine, which is exactly what happened in testing. */
       .stApp, .stApp p, .stApp li, .stApp span, .stApp label,
       .stApp div[data-testid="stMarkdownContainer"],
-      .stApp div[data-testid="stMarkdownContainer"] * { color: #231a12; }
-      .stApp a, .stApp a * { color: #b34700 !important; text-decoration: underline; }
+      .stApp div[data-testid="stMarkdownContainer"] * { color: var(--ink); }
+      .stApp p, .stApp li { line-height: 1.7; }
+      .stApp a, .stApp a * { color: var(--blue) !important; text-decoration: underline; }
 
       /* Captions are the source lines under every claim — they must be legible,
          not a 40%-opacity grey. */
       .stApp div[data-testid="stCaptionContainer"],
       .stApp div[data-testid="stCaptionContainer"] * {
-        color: #55493a !important; font-size: 12px !important;
+        color: var(--muted) !important; font-size: 11.5px !important;
       }
 
       /* Tabs: default Streamlit renders these near-invisible on a cream base. */
-      .stTabs [data-baseweb="tab-list"] {
-        gap: 4px; border-bottom: 3px solid #231a12; background: transparent;
-      }
+      .stTabs [data-baseweb="tab-list"] { gap: 6px; background: transparent; border: none; }
       .stTabs [data-baseweb="tab"] {
-        background: #f3f1e2; border: 3px solid #231a12; border-bottom: none;
-        border-radius: 0; padding: 8px 18px; margin-bottom: -3px;
+        background: var(--card2); border: 2px solid var(--line); border-radius: var(--r);
+        padding: 9px 18px; box-shadow: 3px 3px 0 var(--line);
       }
       .stTabs [data-baseweb="tab"] p {
-        color: #231a12 !important; font-weight: 700 !important; font-size: 13px !important;
+        color: var(--ink) !important; font-weight: 700 !important;
+        font-size: 12px !important; text-transform: uppercase; letter-spacing: .05em;
       }
-      .stTabs [aria-selected="true"] { background: #f0b31e; }
-      .stTabs [aria-selected="true"] p { color: #231a12 !important; }
+      .stTabs [aria-selected="true"] { background: var(--yellow); }
       .stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] {
-        background: transparent !important;
+        background: transparent !important; display: none !important;
       }
 
       /* Expanders — the account cards. The header bar was rendering as a dark
          slab with dark text; pin both surfaces. */
       div[data-testid="stExpander"] {
-        border: 3px solid #231a12 !important; border-radius: 0 !important;
-        background: #fbfaf2 !important; box-shadow: 4px 4px 0 #231a12;
-        margin-bottom: 18px;
+        border: 2px solid var(--line) !important; border-radius: var(--r) !important;
+        background: var(--card) !important; box-shadow: var(--shadow);
+        margin-bottom: 18px; overflow: hidden;
       }
       div[data-testid="stExpander"] summary,
       div[data-testid="stExpander"] details > summary {
-        background: #f0b31e !important; border-radius: 0 !important;
-        border-bottom: 3px solid #231a12 !important; padding: 12px 14px !important;
+        background: var(--card2) !important; border-radius: 0 !important;
+        border-bottom: 2px solid var(--line) !important; padding: 14px 16px !important;
       }
       div[data-testid="stExpander"] summary p,
       div[data-testid="stExpander"] summary span,
       div[data-testid="stExpander"] summary svg {
-        color: #231a12 !important; fill: #231a12 !important;
+        color: var(--ink) !important; fill: var(--ink) !important;
         font-weight: 700 !important; font-size: 14px !important;
       }
-      div[data-testid="stExpander"] summary:hover { background: #f7c53f !important; }
+      div[data-testid="stExpander"] summary:hover { background: var(--yellow) !important; }
 
       /* Sidebar: brief + controls. */
-      section[data-testid="stSidebar"] { background: #f3f1e2; border-right: 3px solid #231a12; }
-      section[data-testid="stSidebar"] * { color: #231a12 !important; }
+      section[data-testid="stSidebar"] {
+        background: #ece8dc; border-right: 2px solid var(--line);
+      }
+      section[data-testid="stSidebar"] * { color: var(--ink) !important; }
       section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
-      section[data-testid="stSidebar"] h3 { color: #d2600e !important; }
+      section[data-testid="stSidebar"] h3 {
+        font-size: 13px !important; text-transform: uppercase; letter-spacing: .09em;
+        color: var(--muted) !important;
+      }
       section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] * {
-        color: #55493a !important;
+        color: var(--muted) !important;
       }
 
       /* Alerts (st.info / st.success / st.error) — used for "why it matters"
          and for the failure explanations in the run trace. */
-      div[data-testid="stAlert"] { border: 3px solid #231a12; border-radius: 0; }
-      div[data-testid="stAlert"] * { color: #231a12 !important; }
+      div[data-testid="stAlert"] {
+        border: 2px solid var(--line); border-radius: var(--r);
+        box-shadow: 3px 3px 0 var(--line);
+      }
+      div[data-testid="stAlert"] * { color: var(--ink) !important; }
 
-      .stSlider label, .stSlider [data-testid="stTickBar"] { color: #231a12 !important; }
+      .stSlider label, .stSlider [data-testid="stTickBar"] { color: var(--ink) !important; }
+      div[data-testid="stProgress"] > div > div > div { background: var(--green) !important; }
 
-      .emailbox { background:#fff; border:3px solid #231a12; padding:16px;
-        box-shadow:4px 4px 0 #231a12; white-space:pre-wrap; font-size:13px;
-        color:#231a12; line-height:1.65; }
-      .subjbox { background:#f0b31e; border:3px solid #231a12; border-bottom:none;
-        padding:10px 14px; font-weight:700; font-size:13px; color:#231a12; }
-      .warnbox { background:#f0b31e; border:3px solid #231a12; padding:10px 13px;
-        font-size:12.5px; margin-bottom:12px; color:#231a12; }
+      .emailbox { background: var(--card); border: 2px solid var(--line);
+        border-top: none; border-radius: 0 0 var(--r) var(--r); padding: 18px;
+        box-shadow: var(--shadow); white-space: pre-wrap; font-size: 13px;
+        color: var(--ink); line-height: 1.75; }
+      .subjbox { background: var(--yellow); border: 2px solid var(--line);
+        border-bottom: none; border-radius: var(--r) var(--r) 0 0;
+        padding: 11px 16px; font-weight: 700; font-size: 13px; color: var(--ink); }
+      .warnbox { background: var(--yellow); border: 2px solid var(--line);
+        border-radius: var(--r); padding: 11px 14px; font-size: 12.5px;
+        margin-bottom: 12px; color: var(--ink); box-shadow: 3px 3px 0 var(--line); }
 
       /* The agent rail — makes the nine agents visible as a system, which is
-         what the brief is actually grading. */
-      .rail { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 18px; }
-      .chip { border:3px solid #231a12; background:#fbfaf2; padding:7px 10px;
-        box-shadow:3px 3px 0 #231a12; min-width:132px; }
-      .chip b { font-family:'Press Start 2P',monospace; font-size:9px; color:#d2600e; }
-      .chip span { display:block; font-size:10.5px; color:#4e4335; margin-top:5px;
-        line-height:1.35; }
-      .chip.done { background:#d8f0cf; }
-      .chip.fail { background:#f6cfc7; }
-      .arrow { align-self:center; color:#231a12; font-weight:700; }
+         what the brief is actually grading. Mirrors the portal's numbered
+         "How today works" step cards. */
+      .rail { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 22px; }
+      .chip { border:2px solid var(--line); border-radius:var(--r);
+        background:var(--card); padding:10px 12px; box-shadow:3px 3px 0 var(--line);
+        min-width:134px; flex:1 1 134px; }
+      .chip b { display:inline-block; background:var(--ink); color:var(--yellow);
+        font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
+        padding:2px 7px; border-radius:5px; letter-spacing:.06em; }
+      .chip span { display:block;
+        font-family:'Instrument Sans',system-ui,sans-serif; font-size:12.5px;
+        font-weight:600; color:var(--ink); margin-top:8px; line-height:1.3; }
+      .chip.done { background:var(--greenbg); }
+      .chip.fail { background:var(--redbg); }
+      .arrow { display:none; }
     </style>
     """,
     unsafe_allow_html=True,
