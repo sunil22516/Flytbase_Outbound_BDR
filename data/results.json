@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-07-25T08:18:59+00:00",
+  "brief": {
+    "target_vertical": "Large-scale lithium, copper, and iron ore mining operations in Latin America",
+    "reference_account": "Sociedad Química y Minera de Chile (SQM)",
+    "goal_titles": [
+      "Head of Operations",
+      "VP of HSE",
+      "Site Director"
+    ],
+    "angle": "Autonomous drone inspection replacing contracted crews at hazardous, 24/7 extraction sites",
+    "geography": "Latin America"
+  },
+  "providers": {
+    "gemini": {
+      "configured": true,
+      "model": "gemini-2.5-flash",
+      "role": "grounded research + citations"
+    },
+    "groq": {
+      "configured": true,
+      "model": "llama-3.3-70b-versatile",
+      "role": "email drafting + critic loop"
+    }
+  },
+  "icp": null,
+  "accounts": [],
+  "rejected": [],
+  "summary": {
+    "candidates_screened": 0,
+    "accounts_qualified": 0,
+    "accounts_rejected": 0,
+    "contacts_found": 0,
+    "emails_generated": 0,
+    "claims_total": 0,
+    "claims_verified": 0,
+    "claims_quarantined": 0,
+    "unique_sources": 0
+  },
+  "trace": {
+    "started": "2026-07-25T08:18:49+00:00",
+    "finished": "2026-07-25T08:18:59+00:00",
+    "total_duration_s": 10.5,
+    "stages": [
+      {
+        "agent": "A0",
+        "label": "ICP Architect",
+        "status": "failed",
+        "started": "2026-07-25T08:18:49+00:00",
+        "finished": "2026-07-25T08:18:59+00:00",
+        "duration_s": 10.5,
+        "inputs": "reference account: Sociedad Química y Minera de Chile (SQM)",
+        "output_summary": "",
+        "searches": [],
+        "sources_found": 0,
+        "error": "RuntimeError: request failed after 3 attempts: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "fix": "Stage failed. Re-run this stage in isolation; if the provider rate-limited, back off and retry, otherwise fall back to the secondary provider.",
+        "notes": []
+      },
+      {
+        "agent": "A1",
+        "label": "Account Scout",
+        "status": "skipped",
+        "started": "2026-07-25T08:18:59+00:00",
+        "finished": "2026-07-25T08:18:59+00:00",
+        "duration_s": 0.0,
+        "inputs": "ICP from A0",
+        "output_summary": "",
+        "searches": [],
+        "sources_found": 0,
+        "error": "no ICP available",
+        "fix": "A0 must succeed before scouting can run.",
+        "notes": []
+      },
+      {
+        "agent": "A2",
+        "label": "Account Qualifier",
+        "status": "skipped",
+        "started": "2026-07-25T08:18:59+00:00",
+        "finished": "2026-07-25T08:18:59+00:00",
+        "duration_s": 0.0,
+        "inputs": "0 candidates",
+        "output_summary": "",
+        "searches": [],
+        "sources_found": 0,
+        "error": "no ICP or no candidates to score",
+        "fix": "Requires A0 and A1 to have produced output.",
+        "notes": []
+      },
+      {
+        "agent": "A6",
+        "label": "Verifier / Fact Guard",
+        "status": "ok",
+        "started": "2026-07-25T08:18:59+00:00",
+        "finished": "2026-07-25T08:18:59+00:00",
+        "duration_s": 0.0,
+        "inputs": "0 accounts",
+        "output_summary": "0/0 claims verified, 0 quarantined, 0 contacts flagged unverified",
+        "searches": [],
+        "sources_found": 0,
+        "error": "",
+        "fix": "",
+        "notes": []
+      }
+    ],
+    "quarantined": [],
+    "counts": {
+      "ok": 1,
+      "partial": 0,
+      "failed": 1,
+      "skipped": 2
+    }
+  }
+}
