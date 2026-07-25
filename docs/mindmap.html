@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Thinking Map — Outbound BDR Agent</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --ink:#12151b; --ink2:#4a5260; --ink3:#848d9b;
+  --line:#e2e6ec; --accent:#1a56db; --accent-soft:#eaf0fe;
+  --dec:#9a6300; --dec-soft:#fdf3e0; --dec-line:#eccf94;
+  --stop:#b3261e; --stop-soft:#fdeceb; --stop-line:#f0bdb9;
+  --good:#0d7a45; --good-soft:#e6f5ec; --good-line:#b6dfc7;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  font-size:15px;line-height:1.55;padding:34px 18px 70px}
+main{width:min(1080px,100%);margin:0 auto}
+h1{font-size:27px;letter-spacing:-.025em;margin:0}
+h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);margin:44px 0 14px;padding-bottom:7px;border-bottom:1.5px solid var(--line)}
+h3{font-size:15px;margin:0}
+p{margin:0}
+.lede{color:var(--ink2);max-width:760px;margin-top:9px;font-size:15px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+
+/* framing */
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:20px 22px;margin-top:16px}
+.frame .q{font-size:16px;font-weight:650}
+.frame .a{color:var(--ink2);margin-top:7px}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin-top:14px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.col h4{margin:0 0 5px;font-size:13.5px}
+.col p{font-size:13px;color:var(--ink2)}
+.col .num{font-family:var(--mono);font-size:11px;color:var(--ink3);font-weight:700}
+
+/* flow */
+.flow{display:flex;flex-direction:column;align-items:center;margin-top:8px}
+.node,.decision,.stop,.note{width:min(660px,100%);border-radius:10px;padding:13px 17px;background:var(--panel)}
+.node{border:1.5px solid var(--line)}
+.node.io{border-color:#c9d6f7;background:var(--accent-soft)}
+.decision{border:1.5px solid var(--dec-line);background:var(--dec-soft)}
+.stop{border:1.5px solid var(--stop-line);background:var(--stop-soft)}
+.note{border:1.5px dashed #cfc4e8;background:#f0ecf9}
+.tagline{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.code{font-family:var(--mono);font-size:11px;font-weight:800;color:var(--accent);
+  background:#fff;border:1px solid #d3e0fb;padding:1px 6px;border-radius:4px}
+.role{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3)}
+.node .what,.decision .what,.stop .what{font-size:13px;color:var(--ink2);margin-top:5px}
+.io-line{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:7px}
+.arrow{width:2px;height:20px;background:#b9c0cc;position:relative;margin:3px 0}
+.arrow::after{content:"";position:absolute;bottom:-1px;left:-4px;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #b9c0cc}
+.split-label{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink3);margin:5px 0}
+.branch{display:flex;gap:14px;width:min(660px,100%);flex-wrap:wrap}
+.branch>div{flex:1;min-width:210px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.branch .node,.branch .stop,.branch .decision{width:100%}
+.fanout{width:min(660px,100%);border:1.5px dashed #c9d6f7;border-radius:10px;
+  padding:9px 14px;background:#f7faff;text-align:center;font-size:12px;color:var(--ink2)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#fafbfc;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
+tr:last-child td{border-bottom:0}
+td.k{font-weight:600;white-space:nowrap}
+.mono{font-family:var(--mono);font-size:12px}
+
+/* decisions / tradeoffs */
+.dec{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:9px;padding:15px 18px;margin-bottom:11px}
+.dec h4{margin:0 0 6px;font-size:14.5px}
+.dec .why{font-size:13.5px;color:var(--ink2)}
+.dec .alt{font-size:12.5px;color:var(--ink3);margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}
+.dec.warn{border-left-color:var(--dec)}
+.dec.fail{border-left-color:var(--stop)}
+.pill{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;padding:2px 7px;border-radius:4px;background:var(--good-soft);color:var(--good)}
+.pill.w{background:var(--dec-soft);color:var(--dec)}
+.pill.s{background:var(--stop-soft);color:var(--stop)}
+.foot{margin-top:44px;color:var(--ink3);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+<main>
+
+  <div class="eyebrow">Outbound BDR hackathon — thought process</div>
+  <h1>How I broke the problem down</h1>
+  <p class="lede">
+    Input is a campaign brief (LatAm mining, anchored on SQM). Output is an account list,
+    a contact list, and personalised outreach. The interesting question is not
+    <em>can an LLM write this</em> — it is <strong>how do you decompose the job so that
+    every claim is checkable and every failure is visible</strong>.
+  </p>
+
+  <h2>1 · The framing question</h2>
+  <div class="frame">
+    <p class="q">What does a human BDR actually do before they send one good email?</p>
+    <p class="a">
+      They build a mental model of the anchor account. They find lookalikes. They cut the ones
+      that don't fit. They read the news on each survivor. They work out which recent event makes
+      <em>now</em> the moment. They find who owns that problem. They sanity-check the facts.
+      They write. Then they re-read it and rewrite the weak bits.
+    </p>
+    <p class="a" style="margin-top:10px">
+      That is <strong>nine distinct jobs</strong>, not four. Collapsing them into one prompt is
+      the thing that produces generic output — so I gave each job its own agent, its own
+      instructions, and its own failure mode.
+    </p>
+  </div>
+
+  <div class="cols">
+    <div class="col"><div class="num">Naive split</div><h4>4 stages</h4>
+      <p>Accounts → Contacts → Research → Emails. Matches the brief's headings, but each
+         stage is doing three jobs at once and none of them can be checked independently.</p></div>
+    <div class="col"><div class="num">What I built</div><h4>9 specialists</h4>
+      <p>Every agent has one job, typed input, typed output. A weak stage is
+         identifiable and swappable without touching the others.</p></div>
+    <div class="col"><div class="num">Why it matters</div><h4>Checkability</h4>
+      <p>Separating <em>research</em> from <em>verification</em> from <em>writing</em> is what
+         lets a fact guard sit between them and quarantine unsourced claims.</p></div>
+  </div>
+
+  <h2>2 · The pipeline</h2>
+  <div class="flow">
+
+    <div class="node io">
+      <div class="tagline"><span class="role">Input</span><h3>Campaign brief</h3></div>
+      <p class="what">Target vertical + reference account + goal titles + our angle. One object, no other input.</p>
+      <p class="io-line">→ CampaignBrief</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A0</span><h3>ICP Architect</h3></div>
+      <p class="what">Researches SQM and deconstructs it into a <strong>weighted, machine-readable ICP</strong> —
+        6–8 scored axes plus hard disqualifiers. Everything downstream scores against this contract.</p>
+      <p class="io-line">brief → ICP{dimensions[], weights, disqualifiers[]}</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A1</span><h3>Account Scout</h3></div>
+      <p class="what">Grounded search for real LatAm operators matching the profile.
+        Deliberately over-fetches (target + 6) so the next stage has something to cut.</p>
+      <p class="io-line">ICP → Account[] candidates + source URLs</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="decision">
+      <div class="tagline"><span class="code">A2</span><span class="role">Decision</span><h3>Account Qualifier</h3></div>
+      <p class="what">Scores every candidate on every ICP axis, computes a weighted fit score,
+        and applies the disqualifiers. <strong>This agent is allowed to say no.</strong></p>
+      <p class="io-line">candidates → qualified[] + rejected[]</p>
+    </div>
+    <div class="split-label">qualified ↓ &nbsp;·&nbsp; rejected →</div>
+
+    <div class="branch">
+      <div>
+        <div class="stop">
+          <div class="tagline"><span class="role">Kept, not discarded</span><h3>Rejected accounts</h3></div>
+          <p class="what">Shipped to the UI with the reason. The boundary of the ICP is
+            information an AE needs — it shows the screen actually ran.</p>
+        </div>
+      </div>
+      <div>
+        <div class="node">
+          <div class="tagline"><span class="role">Continue</span><h3>Top N by fit score</h3></div>
+          <p class="what">Depth over breadth. 8 well-researched accounts beat 40 shallow ones.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"></div>
+    <div class="fanout">fan out — the next three agents run per account, independently</div>
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A3</span><h3>Research Analyst</h3></div>
+      <p class="what">Deep grounded research per account: footprint, recent news, technology
+        signals, HSE pressure, contractor usage. Emits <strong>atomic claims</strong>, not a prose
+        blob — so verification can happen per claim instead of per brief.</p>
+      <p class="io-line">Account → Claim[]{text, confidence, sources[]}</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A4</span><h3>Signal Extractor</h3></div>
+      <p class="what">Turns claims into <strong>dated trigger events</strong> — the reason this
+        account should care <em>now</em>. This is the layer that separates strategic insight
+        from company trivia, which is why it is its own agent.</p>
+      <p class="io-line">Claim[] → Trigger[]{what happened, why it matters now, citations}</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A5</span><h3>Contact Mapper</h3></div>
+      <p class="what">Finds Head of Ops / VP HSE / Site Directors, including local-language
+        equivalents. Highest hallucination risk in the pipeline, so it is instructed to
+        <strong>return nothing rather than guess</strong>, and every email carries a
+        found / inferred / not-found status.</p>
+      <p class="io-line">Account → Contact[]{name, title, linkedin, email_status, sources[]}</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="decision">
+      <div class="tagline"><span class="code">A6</span><span class="role">Gate</span><h3>Verifier / Fact Guard</h3></div>
+      <p class="what"><strong>Deterministic Python, not an LLM call.</strong> A guard implemented as
+        another model can hallucinate its own approval. Any claim without a resolvable source URL
+        is quarantined before it can reach an email.</p>
+      <p class="io-line">Claim[] → verified[] + quarantined[] (both surfaced)</p>
+    </div>
+    <div class="split-label">verified ↓ &nbsp;·&nbsp; unsourced →</div>
+
+    <div class="branch">
+      <div>
+        <div class="stop">
+          <div class="tagline"><span class="role">Blocked</span><h3>Quarantine</h3></div>
+          <p class="what">Never reaches an email. Listed in the run trace with the reason,
+            so the gap is visible instead of silently filled in.</p>
+        </div>
+      </div>
+      <div>
+        <div class="node">
+          <div class="tagline"><span class="role">Continue</span><h3>Verified material only</h3></div>
+          <p class="what">The composer physically cannot cite a quarantined claim.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"></div>
+
+    <div class="node">
+      <div class="tagline"><span class="code">A7</span><h3>Message Composer</h3></div>
+      <p class="what">One email per contact from verified material. Picks <strong>one</strong>
+        FlytBase proof point that actually maps to the account (Anglo American → mining major,
+        Shell → hazardous 24/7 process, CSX → sprawling linear sites) rather than name-dropping
+        all three. Also emits a call opener and objection prep.</p>
+      <p class="io-line">verified claims + trigger + contact → Email</p>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="decision">
+      <div class="tagline"><span class="code">A8</span><span class="role">Reflection loop</span><h3>Critic</h3></div>
+      <p class="what">Two layers. <strong>Deterministic gate:</strong> placeholder detection,
+        length, banned filler — these are the brief's disqualifiers, so they cannot depend on a
+        model's opinion. <strong>Rubric scoring:</strong> specificity, trigger use, proof-point
+        fit, human voice, CTA. Below the pass mark, it sends the draft back for one rewrite.</p>
+      <p class="io-line">Email → score + notes → (rewrite once) → Email</p>
+    </div>
+    <div class="split-label">pass ↓ &nbsp;·&nbsp; fail ↺ back to A7</div>
+
+    <div class="node io">
+      <div class="tagline"><span class="role">Output</span><h3>BDR workspace + run trace</h3></div>
+      <p class="what">A single results.json renders the live site: ranked accounts, ICP breakdown,
+        cited research, contacts, emails, call openers, objections — plus every stage that
+        succeeded, degraded, or failed.</p>
+    </div>
+  </div>
+
+  <h2>3 · Decision points</h2>
+  <table>
+    <tr><th>Where</th><th>The decision</th><th>What happens on each branch</th></tr>
+    <tr><td class="k">A2 Qualifier</td><td>Does this account clear the ICP?</td>
+      <td><strong>No</strong> → rejected list with the reason, still shipped.
+          <strong>Yes</strong> → ranked by weighted score, top N continue.</td></tr>
+    <tr><td class="k">A4 Signals</td><td>Is there a dated trigger?</td>
+      <td><strong>No</strong> → flagged; the email falls back to weaker profile-based
+          personalisation and the account is a deprioritisation candidate.</td></tr>
+    <tr><td class="k">A5 Contacts</td><td>Can I verify a real person?</td>
+      <td><strong>No</strong> → return zero contacts. Never invent a name. Routed to a paid
+          contact provider in the production fix.</td></tr>
+    <tr><td class="k">A6 Verifier</td><td>Does this claim resolve to a live source?</td>
+      <td><strong>No</strong> → quarantined, logged, and made unusable by the composer.</td></tr>
+    <tr><td class="k">A8 Critic</td><td>Does the draft clear the rubric?</td>
+      <td><strong>No</strong> → one rewrite with specific instructions, then re-checked.</td></tr>
+  </table>
+
+  <h2>4 · Design decisions and tradeoffs</h2>
+
+  <div class="dec">
+    <h4><span class="pill">Core</span> &nbsp;Nine narrow agents instead of one wide prompt</h4>
+    <p class="why">Each agent has one job and a typed contract with the next. A weak stage can be
+      swapped without touching the rest, and a failure is attributable to a specific agent
+      rather than to "the AI".</p>
+    <p class="alt">Cost: more calls, more latency, more orchestration code. Worth it — a single
+      mega-prompt cannot be debugged, only re-rolled.</p>
+  </div>
+
+  <div class="dec">
+    <h4><span class="pill">Core</span> &nbsp;Provenance is a first-class type, not a prompt instruction</h4>
+    <p class="why">"Cite your sources" in a prompt is a suggestion. Making <span class="mono">Source</span>
+      a required field on every claim, and putting a deterministic gate between research and
+      writing, makes it structural. Every fact on the site links back to where it came from.</p>
+    <p class="alt">This is the direct answer to "fabricated data is an automatic disqualifier" —
+      it turns the biggest risk into the system's main feature.</p>
+  </div>
+
+  <div class="dec">
+    <h4><span class="pill">Core</span> &nbsp;The fact guard is plain Python</h4>
+    <p class="why">Every other stage is an LLM. A6 is regex and set logic on URLs. A verifier that
+      is itself a language model can be talked into approving its own hallucination; one that
+      checks whether a string is a resolvable non-social URL cannot.</p>
+  </div>
+
+  <div class="dec warn">
+    <h4><span class="pill w">Tradeoff</span> &nbsp;Depth over breadth — 8 accounts, not 40</h4>
+    <p class="why">The brief asks for strategic insight, not volume. Eight accounts with dated,
+      cited triggers are more useful to an AE than forty rows of company descriptions.</p>
+    <p class="alt">Configurable via <span class="mono">TARGET_ACCOUNTS</span>. The constraint is
+      free-tier rate limits, not architecture.</p>
+  </div>
+
+  <div class="dec warn">
+    <h4><span class="pill w">Tradeoff</span> &nbsp;Two providers, split by job</h4>
+    <p class="why">Gemini carries every research stage because Google Search grounding returns
+      real, resolvable citation URLs. Groq carries the drafting and critic loop because it is
+      fast and the loop is high-volume. Splitting also spreads free-tier quota across the run.</p>
+    <p class="alt">Cost: two failure surfaces. Mitigated by per-stage fallback and a trace that
+      records which provider ran and how it degraded.</p>
+  </div>
+
+  <div class="dec fail">
+    <h4><span class="pill s">Known limit</span> &nbsp;Contact discovery is the weakest stage</h4>
+    <p class="why">Public leadership pages for privately-held LatAm mining operators are thin, and
+      much of the useful data is behind LinkedIn auth. The system returns zero contacts for some
+      accounts rather than inventing plausible ones.</p>
+    <p class="alt">Production fix: route those accounts to a licensed contact provider
+      (Apollo / Cognism / Lusha) or a Sales Navigator seat, keeping the same verification gate
+      so nothing enters an email unsourced.</p>
+  </div>
+
+  <div class="dec fail">
+    <h4><span class="pill s">Known limit</span> &nbsp;English-language search bias</h4>
+    <p class="why">Grounding skews to English coverage, which under-reports Spanish and Portuguese
+      local press — exactly where LatAm mine-level operational news lives.</p>
+    <p class="alt">Fix: run A3 twice per account with localised query sets and merge on claim
+      similarity. Skipped here for time, not for difficulty.</p>
+  </div>
+
+  <h2>5 · Where a reviewer should look</h2>
+  <table>
+    <tr><th>Question</th><th>Where it is answered</th></tr>
+    <tr><td class="k">Did it actually run?</td><td>Run trace tab — every stage, duration, searches issued, sources returned</td></tr>
+    <tr><td class="k">Is the data real?</td><td>Every claim carries clickable source links; quarantined claims are shown greyed out</td></tr>
+    <tr><td class="k">Did it fail anywhere?</td><td>Run trace — failures are shown with a written fix, not hidden</td></tr>
+    <tr><td class="k">Is the ICP arbitrary?</td><td>ICP tab — weighted axes derived from SQM, with SQM's own value on each axis</td></tr>
+    <tr><td class="k">Is it just a list?</td><td>Each contact ships an email, a call opener, and objection prep</td></tr>
+  </table>
+
+  <p class="foot">FlytBase Outbound BDR hackathon · thinking map</p>
+</main>
+</body>
+</html>
