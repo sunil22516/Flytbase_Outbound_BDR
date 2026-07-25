@@ -77,8 +77,17 @@ st.markdown(
         background-image: radial-gradient(#d8d3c4 1px, transparent 1px);
         background-size: 22px 22px; }
 
-      html, body, [class*="css"], .stApp p, .stApp li, .stApp span {
+      /* Do NOT put font-family on a bare `span`. Streamlit renders its icons as
+         Material Symbols ligatures inside spans, so overriding the font makes
+         every icon print its own name ("arrow_right") on top of the label. */
+      html, body, [class*="css"], .stApp p, .stApp li {
         font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+      }
+      .stApp [data-testid="stIconMaterial"],
+      .stApp span[class*="material-symbols"],
+      .stApp .material-symbols-rounded, .stApp .material-symbols-outlined {
+        font-family: 'Material Symbols Rounded', 'Material Symbols Outlined' !important;
+        font-size: 20px !important; line-height: 1 !important;
       }
       h1, h2, h3 {
         font-family: 'Instrument Sans', 'Inter', system-ui, sans-serif !important;
@@ -162,11 +171,14 @@ st.markdown(
         border-bottom: 2px solid var(--line) !important; padding: 14px 16px !important;
       }
       div[data-testid="stExpander"] summary p,
-      div[data-testid="stExpander"] summary span,
       div[data-testid="stExpander"] summary svg {
         color: var(--ink) !important; fill: var(--ink) !important;
         font-weight: 700 !important; font-size: 14px !important;
       }
+      /* Give the disclosure icon its own column so it can never sit on top of
+         the account name. */
+      div[data-testid="stExpander"] summary { display: flex !important;
+        align-items: center !important; gap: 10px !important; }
       div[data-testid="stExpander"] summary:hover { background: var(--yellow) !important; }
 
       /* Sidebar: brief + controls. */
@@ -208,16 +220,24 @@ st.markdown(
       /* The agent rail — makes the nine agents visible as a system, which is
          what the brief is actually grading. Mirrors the portal's numbered
          "How today works" step cards. */
-      .rail { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 22px; }
+      /* Grid, not flex-wrap: with flex the orphans on the last row stretched to
+         half the page each. Nine equal cards read as one pipeline. */
+      .rail { display:grid; gap:8px; margin:10px 0 22px;
+        grid-template-columns:repeat(auto-fit, minmax(128px, 1fr)); }
       .chip { border:2px solid var(--line); border-radius:var(--r);
-        background:var(--card); padding:10px 12px; box-shadow:3px 3px 0 var(--line);
-        min-width:134px; flex:1 1 134px; }
-      .chip b { display:inline-block; background:var(--ink); color:var(--yellow);
-        font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
-        padding:2px 7px; border-radius:5px; letter-spacing:.06em; }
-      .chip span { display:block;
-        font-family:'Instrument Sans',system-ui,sans-serif; font-size:12.5px;
-        font-weight:600; color:var(--ink); margin-top:8px; line-height:1.3; }
+        background:var(--card); padding:10px 12px; box-shadow:3px 3px 0 var(--line); }
+      /* !important throughout: the blanket `stMarkdownContainer *` colour rule
+         above out-specifies these otherwise, and painted the badge text dark on
+         a dark badge — solid black boxes where A0..A8 should be. */
+      .rail .chip b { display:inline-block !important;
+        background:var(--ink) !important; color:var(--yellow) !important;
+        font-family:'JetBrains Mono',monospace !important; font-size:10px !important;
+        font-weight:700 !important; padding:2px 7px !important;
+        border-radius:5px !important; letter-spacing:.06em !important; }
+      .rail .chip span { display:block !important;
+        font-family:'Instrument Sans',system-ui,sans-serif !important;
+        font-size:12.5px !important; font-weight:600 !important;
+        color:var(--ink) !important; margin-top:8px !important; line-height:1.3 !important; }
       .chip.done { background:var(--greenbg); }
       .chip.fail { background:var(--redbg); }
       .arrow { display:none; }
