@@ -72,6 +72,19 @@ st.markdown(
         background: #fbfaf2; border: 3px solid #231a12; padding: 12px;
         box-shadow: 4px 4px 0 #231a12;
       }
+      /* Streamlit's default metric text is low-contrast on this cream panel,
+         so set both label and value explicitly. */
+      div[data-testid="stMetric"] label,
+      div[data-testid="stMetricLabel"] p {
+        color: #4e4335 !important; font-size: 11px !important;
+        text-transform: uppercase; letter-spacing: .06em; font-weight: 700 !important;
+      }
+      div[data-testid="stMetricValue"] {
+        color: #d2600e !important; font-family: 'Press Start 2P', monospace !important;
+        font-size: 17px !important;
+      }
+      .stApp, .stApp p, .stApp li, .stApp span { color: #231a12; }
+      section[data-testid="stSidebar"] { background: #f3f1e2; border-right: 3px solid #231a12; }
       .emailbox { background:#fff; border:3px solid #231a12; padding:16px;
         box-shadow:4px 4px 0 #231a12; white-space:pre-wrap; font-size:13px; }
       .subjbox { background:#f0b31e; border:3px solid #231a12; border-bottom:none;
