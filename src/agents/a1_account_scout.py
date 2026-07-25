@@ -81,6 +81,21 @@ def run(state: RunState, trace: Trace) -> None:
         rec.searches = result.queries
         rec.sources_found = len(result.sources)
 
+        # Models occasionally abstain on a first pass despite usable evidence.
+        # One explicit retry costs a single call and turns an empty run into a
+        # full one, so it is worth far more than the token it spends.
+        if not (data.get("candidates") or []):
+            rec.notes.append("first pass returned no candidates; retried with an explicit extraction instruction")
+            retry = (
+                _prompt(icp_block, over_fetch)
+                + "\n\nThe evidence above names real mining companies. Extract every "
+                "distinct company that operates in Latin America, using the exact "
+                "names as they appear. Do not return an empty list unless the "
+                "evidence genuinely names no mining company at all."
+            )
+            data, result = research_json(retry, queries, system=SYSTEM)
+            rec.sources_found = max(rec.sources_found, len(result.sources))
+
         shared_sources = result.sources
         seen: set[str] = set()
         for c in data.get("candidates") or []:

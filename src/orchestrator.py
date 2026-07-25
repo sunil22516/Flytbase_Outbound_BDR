@@ -150,12 +150,38 @@ def _assemble(state: RunState, trace: Trace) -> dict[str, Any]:
     }
 
 
-def write_results(payload: dict[str, Any]) -> list[Path]:
-    """Write to data/ (the artifact) and docs/data/ (what the live site serves)."""
+def write_results(payload: dict[str, Any], force: bool = False) -> list[Path]:
+    """Write to data/ (the artifact) and docs/data/ (what the live site serves).
+
+    Refuses to clobber a good run with an empty one. A transient provider
+    failure in an early stage produces a valid-but-empty payload, and writing
+    that over a successful run silently destroys the deliverable — which is
+    exactly what happened once before this guard existed.
+    """
     written: list[Path] = []
+    new_accounts = len(payload.get("accounts") or [])
+
     for directory in (config.DATA_DIR, config.SITE_DATA_DIR):
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / "results.json"
+
+        if not force and new_accounts == 0 and path.exists():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+            if len(existing.get("accounts") or []) > 0:
+                backup = directory / "results.failed.json"
+                backup.write_text(
+                    json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+                print(
+                    f"  REFUSED to overwrite {path.name}: new run has 0 accounts, "
+                    f"existing has {len(existing['accounts'])}. "
+                    f"Failed payload saved to {backup.name}."
+                )
+                continue
+
         path.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )

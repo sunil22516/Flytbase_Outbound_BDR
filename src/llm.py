@@ -179,20 +179,42 @@ def gemini_chat(prompt: str, system: str | None = None) -> str:
     return "".join(p.get("text", "") for p in parts)
 
 
+# Once a provider reports a *daily* cap there is no point retrying it for the
+# rest of the run — every subsequent attempt costs three back-off sleeps before
+# failing identically. Trip a breaker and go straight to the fallback.
+_EXHAUSTED: set[str] = set()
+
+
+def _is_daily_cap(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "429" in msg and ("per day" in msg or "tpd" in msg or "quota" in msg)
+
+
 def _generate(prompt: str, system: str | None, json_mode: bool) -> tuple[str, str]:
     """Groq first, Gemini as fallback. Returns (text, provider)."""
     errors = []
-    if groq_available():
+
+    if groq_available() and "groq" not in _EXHAUSTED:
         try:
             return groq_chat(prompt, system=system, json_mode=json_mode), "groq"
         except Exception as exc:  # noqa: BLE001
+            if _is_daily_cap(exc):
+                _EXHAUSTED.add("groq")
             errors.append(f"groq: {exc}")
-    if gemini_available():
+
+    if gemini_available() and "gemini" not in _EXHAUSTED:
         try:
             return gemini_chat(prompt, system=system), "gemini"
         except Exception as exc:  # noqa: BLE001
+            if _is_daily_cap(exc):
+                _EXHAUSTED.add("gemini")
             errors.append(f"gemini: {exc}")
+
     raise RuntimeError("all providers failed -> " + " | ".join(errors))
+
+
+def exhausted_providers() -> list[str]:
+    return sorted(_EXHAUSTED)
 
 
 # --------------------------------------------------------------------------
@@ -219,12 +241,20 @@ def sources_from_indexes(hits: list[Hit], indexes: Any) -> list[Source]:
     return out
 
 
+# Wording matters more than it looks. An earlier, more absolute version of this
+# ("returning less is correct") made Gemini answer {"candidates": []} on a page
+# of perfectly good evidence — it read the rule as a reason to abstain entirely.
+# The rule that actually matters is "never write a URL"; the rest should push
+# toward extracting what IS there rather than toward silence.
 CITE_RULES = """
-CITATION RULES (strict):
-- You may ONLY use information present in the EVIDENCE block above.
-- Cite by evidence index. Never write a URL yourself.
-- If the evidence does not support something, leave it out. Do not fill gaps
-  from memory. Returning less is correct; inventing detail is not.
+CITATION RULES:
+- Ground every statement in the EVIDENCE block above and cite it by index.
+- NEVER write a URL yourself. Indexes only — the URLs are filled in for you.
+- The evidence is real search output, so it normally DOES support useful
+  answers: read it carefully and extract what is genuinely there.
+- Where the evidence is silent, omit that specific detail. Do not invent
+  names, numbers or dates. Omitting a detail is fine; returning an empty
+  result when the evidence clearly contains relevant material is not.
 """
 
 
