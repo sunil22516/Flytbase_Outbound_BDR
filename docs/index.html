@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlytBase Outbound — LatAm Mining Workspace</title>
+<meta name="description" content="A delegated, source-verified outbound research pipeline for Latin American mining accounts." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="mast-row">
+      <div>
+        <div class="eyebrow">Outbound BDR — autonomous account &amp; contact generation</div>
+        <h1>LatAm Mining Campaign Workspace</h1>
+        <p class="sub" id="briefLine">Loading campaign brief…</p>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button class="tab is-active" data-view="accounts">Accounts</button>
+        <button class="tab" data-view="icp">ICP</button>
+        <button class="tab" data-view="rejected">Rejected</button>
+        <button class="tab" data-view="trace">Run trace</button>
+        <a class="tab tab-link" href="mindmap.html">Thinking map ↗</a>
+      </nav>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <!-- ACCOUNTS -->
+  <section class="view is-active" data-view="accounts">
+    <div class="split">
+      <aside class="list-pane">
+        <div class="pane-head">
+          <h2>Qualified accounts</h2>
+          <span class="muted" id="acctCount"></span>
+        </div>
+        <div id="accountList" class="acct-list"></div>
+      </aside>
+      <div class="detail-pane" id="detail">
+        <div class="empty">Select an account to open the brief.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ICP -->
+  <section class="view" data-view="icp">
+    <div class="card">
+      <h2>Ideal Customer Profile</h2>
+      <p class="muted" id="icpMeta"></p>
+      <div id="icpNotes" class="prose"></div>
+      <h3>Weighted dimensions</h3>
+      <p class="muted small">Derived from the reference account, then used to score every candidate. Weights sum to 1.0.</p>
+      <div id="icpDims"></div>
+      <h3>Automatic disqualifiers</h3>
+      <ul id="icpDq" class="bullets"></ul>
+    </div>
+  </section>
+
+  <!-- REJECTED -->
+  <section class="view" data-view="rejected">
+    <div class="card">
+      <h2>Accounts the system rejected</h2>
+      <p class="muted">A scout that never says no is listing, not qualifying. These were screened out, and why.</p>
+      <div id="rejectedList"></div>
+    </div>
+  </section>
+
+  <!-- TRACE -->
+  <section class="view" data-view="trace">
+    <div class="card">
+      <h2>Run trace</h2>
+      <p class="muted">Every stage, what it produced, and where it hit a wall. Failures are shown, not hidden.</p>
+      <div id="traceCounts" class="pillrow"></div>
+      <div id="traceList"></div>
+      <h3>Quarantined by the fact guard</h3>
+      <p class="muted small">Claims that could not be tied to a resolvable source never reached an email.</p>
+      <div id="quarantineList"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap foot">
+  <span id="footMeta"></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
