@@ -90,7 +90,51 @@ job and a typed contract with the next.
 
 ## Demo / results
 
-<!-- RESULTS_PLACEHOLDER -->
+Latest run, end to end, 487 seconds:
+
+| Metric | Result |
+|---|---|
+| Candidates screened | 10 |
+| Accounts qualified | 4 |
+| Accounts rejected | 6 (kept and shown with reasons) |
+| Contacts produced | 7 |
+| Emails generated | 5 |
+| Claims verified | 8 / 8 |
+| Unique sources retrieved | 66 |
+| Stages ok / partial / failed | 12 / 6 / 7 |
+
+**Top account: Codelco** — ICP fit 9.7/10, 3 dated trigger events, 8 cited claims,
+and a **real named contact**: Jorge Gómez, CEO, surfaced from appointment coverage
+rather than from a JavaScript-rendered leadership page. That contact is the payoff
+from a specific fix — searching for *appointment news* ("X names new chief operating
+officer") instead of org-chart pages, because appointment stories state the person,
+the title and the date in plain HTML.
+
+A generated email, unedited:
+
+> **Subject:** autonomous site inspections at codelco
+>
+> Jorge,
+>
+> Following your field deployment focused on safety and operational discipline,
+> replacing contracted crews at Codelco's hazardous 24/7 extraction sites offers a
+> direct way to reduce risk and operational expenses.
+>
+> FlytBase automates continuous site inspections using autonomous drone
+> infrastructure. Instead of sending manual crews into high-risk mine areas, our
+> platform delivers objective, real-time site data directly to leadership […]
+
+Proof point selected: **Anglo American** — chosen over Shell and CSX because it is the
+closest operational analogue for a copper major. The composer picks one, it does not
+name-drop all three.
+
+**Where this run degraded, honestly.** Three of the four accounts show zero claims and
+zero triggers, and seven stages failed outright. Cause: Groq's free tier hit its 100k
+tokens/day cap mid-session, everything failed over to Gemini, and Gemini then
+rate-limited during the per-account research fan-out. This is a **quota ceiling, not a
+logic failure** — the same code produced 8/8 verified claims and 3 dated triggers for
+Codelco before the budget ran out. Every failure is recorded in the run trace with the
+stage, the error, and a written fix.
 
 ## Notes and limitations
 
