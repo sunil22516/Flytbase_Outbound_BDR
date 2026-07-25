@@ -8,7 +8,7 @@ quarantine at claim granularity instead of throwing away a whole brief.
 from __future__ import annotations
 
 from ..config import BRIEF, COMPANY_CONTEXT
-from ..llm import research_json
+from ..llm import research_json, sources_from_indexes
 from ..schemas import Account, Claim, RunState, Source
 from ..trace import Trace
 
@@ -43,17 +43,19 @@ Return ONLY JSON:
       "text": "one specific, self-contained, factual statement",
       "category": "footprint | news | technology | hse | contractors | other",
       "date": "YYYY-MM or YYYY if the source gives one, else empty string",
-      "confidence": "high | medium | low"
+      "confidence": "high | medium | low",
+      "source_indexes": [0, 2]
     }}
   ],
   "strategic_summary": "3-4 sentences a BDR could actually use, connecting this company's situation to hazardous 24/7 inspection work"
 }}
 
 Rules:
-- 8 to 14 claims. Each must be a single fact, not a paragraph.
+- 6 to 12 claims. Each must be a single fact, not a paragraph.
 - Prefer specific over general: named sites, dated events, real figures.
-- Mark confidence low when the source is weak or indirect. Do not pad.
-- Do not state anything you did not actually find in a source.
+- EVERY claim must carry source_indexes pointing at the evidence it came from.
+- Drop any claim you cannot tie to an evidence item. Fewer real claims beats more invented ones.
+- Mark confidence low when the evidence is indirect.
 """
 
 
@@ -62,12 +64,17 @@ def run(state: RunState, trace: Trace) -> None:
         with trace.stage(
             "A3", f"Research Analyst — {account.name}", inputs=account.name
         ) as rec:
-            data, result = research_json(_prompt(account), system=SYSTEM)
+            queries = [
+                f"{account.name} mine operations sites production",
+                f"{account.name} news expansion capex 2025",
+                f"{account.name} safety incident HSE regulator",
+                f"{account.name} technology automation autonomous drone inspection",
+                f"{account.name} contractors inspection maintenance services",
+            ]
+            data, result = research_json(_prompt(account), queries, system=SYSTEM)
             rec.searches = result.queries
             rec.sources_found = len(result.sources)
 
-            # Grounding sources are returned per-call, so they attach to the
-            # account. The Verifier decides which claims they actually support.
             account.sources = _merge(account.sources, result.sources)
 
             for c in data.get("claims") or []:
@@ -75,10 +82,13 @@ def run(state: RunState, trace: Trace) -> None:
                 if not text:
                     continue
                 conf = str(c.get("confidence", "low")).strip().lower()
+                # Citations come from indexes into the retrieved evidence, so a
+                # claim can only point at a page we actually fetched.
+                cited = sources_from_indexes(result.hits, c.get("source_indexes"))
                 account.research.append(
                     Claim(
                         text=text,
-                        sources=list(result.sources),
+                        sources=cited,
                         confidence=conf if conf in {"high", "medium", "low"} else "low",
                     )
                 )

@@ -70,7 +70,14 @@ def run(state: RunState, trace: Trace) -> None:
         )
         over_fetch = TARGET_ACCOUNTS + 6  # so the Qualifier has something to reject
 
-        data, result = research_json(_prompt(icp_block, over_fetch), system=SYSTEM)
+        queries = [
+            "largest copper mining companies Chile Peru list",
+            "largest iron ore mining companies Brazil list",
+            "lithium mining companies Argentina Chile Latin America",
+            "biggest mining companies Latin America by production",
+            "Codelco Antofagasta Vale Southern Copper Buenaventura operations",
+        ]
+        data, result = research_json(_prompt(icp_block, over_fetch), queries, system=SYSTEM)
         rec.searches = result.queries
         rec.sources_found = len(result.sources)
 

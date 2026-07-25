@@ -1,15 +1,17 @@
 """Provider layer.
 
-Two providers, two jobs:
+Original design used Gemini's Google Search grounding for citations. That turned
+out not to be covered by the free tier (HTTP 429, "check your plan and billing"),
+so research now runs retrieval-first:
 
-  * Gemini + Google Search grounding -> every research call. Grounding returns
-    real source URLs, which is what makes the "no fabricated data" rule
-    survivable. Grounded calls cannot also use JSON response schemas, so we ask
-    for JSON in the prompt and parse defensively.
-  * Groq -> the high-volume drafting and critic loop. Fast, and supports real
-    JSON mode.
+    1. src.search retrieves a real result set for the stage's queries
+    2. the model receives a NUMBERED evidence list and must cite by index
+    3. we map indexes back to the URLs we actually fetched
 
-Either provider can be missing; callers degrade rather than crash.
+The model never supplies a URL, so it cannot invent one. That is a stronger
+guarantee than asking a grounded model to self-report its sources.
+
+Generation runs on Groq (fast, reliable free tier) with Gemini as fallback.
 """
 
 from __future__ import annotations
@@ -24,16 +26,18 @@ import requests
 
 from . import config
 from .schemas import Source
+from .search import Hit, enrich, evidence_block, search
 
 
 class LLMUnavailable(RuntimeError):
-    """No provider configured for the requested capability."""
+    """No provider configured."""
 
 
 @dataclass
 class LLMResult:
-    text: str
+    text: str = ""
     sources: list[Source] = field(default_factory=list)
+    hits: list[Hit] = field(default_factory=list)
     queries: list[str] = field(default_factory=list)
     provider: str = ""
     error: str = ""
@@ -44,7 +48,6 @@ class LLMResult:
 # --------------------------------------------------------------------------
 
 def extract_json(text: str) -> Any:
-    """Pull the first well-formed JSON value out of a model response."""
     if not text:
         raise ValueError("empty response")
 
@@ -58,7 +61,6 @@ def extract_json(text: str) -> Any:
     except json.JSONDecodeError:
         pass
 
-    # Scan for the first balanced { } or [ ] block.
     for opener, closer in (("{", "}"), ("[", "]")):
         start = text.find(opener)
         if start == -1:
@@ -98,13 +100,17 @@ def _post(url: str, payload: dict, headers: dict | None = None) -> dict:
             resp = requests.post(
                 url, json=payload, headers=headers or {}, timeout=config.REQUEST_TIMEOUT
             )
-            if resp.status_code == 429 or resp.status_code >= 500:
-                wait = 2 ** attempt + 1
-                time.sleep(wait)
-                last = RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+            if resp.status_code in (429,) or resp.status_code >= 500:
+                time.sleep(2 ** attempt + 1)
+                last = RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
                 continue
+            if resp.status_code == 404:
+                # Model gone / renamed — retrying will not help.
+                raise RuntimeError(f"HTTP 404: {resp.text[:200]}")
             resp.raise_for_status()
             return resp.json()
+        except RuntimeError:
+            raise
         except Exception as exc:  # noqa: BLE001 - surfaced to the trace
             last = exc
             time.sleep(2 ** attempt)
@@ -112,104 +118,20 @@ def _post(url: str, payload: dict, headers: dict | None = None) -> dict:
 
 
 # --------------------------------------------------------------------------
-# Gemini — grounded research
-# --------------------------------------------------------------------------
-
-_URL_CACHE: dict[str, str] = {}
-
-
-def resolve_url(url: str) -> str:
-    """Gemini returns redirect URLs; follow them so citations are clickable."""
-    if not url or "grounding-api-redirect" not in url:
-        return url
-    if url in _URL_CACHE:
-        return _URL_CACHE[url]
-    try:
-        resp = requests.head(url, allow_redirects=True, timeout=15)
-        final = resp.url or url
-    except Exception:  # noqa: BLE001 - a redirect failure is not fatal
-        final = url
-    _URL_CACHE[url] = final
-    return final
-
-
-def gemini_available() -> bool:
-    return bool(config.GEMINI_API_KEY)
-
-
-def gemini_grounded(prompt: str, system: str | None = None) -> LLMResult:
-    """Run a research prompt with Google Search grounding enabled."""
-    if not gemini_available():
-        raise LLMUnavailable("GEMINI_API_KEY is not set")
-
-    payload: dict[str, Any] = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "tools": [{"google_search": {}}],
-        "generationConfig": {"temperature": 0.3},
-    }
-    if system:
-        payload["systemInstruction"] = {"parts": [{"text": system}]}
-
-    url = config.GEMINI_URL.format(model=config.GEMINI_MODEL)
-    data = _post(
-        url,
-        payload,
-        headers={
-            "x-goog-api-key": config.GEMINI_API_KEY,
-            "Content-Type": "application/json",
-        },
-    )
-
-    candidates = data.get("candidates") or []
-    if not candidates:
-        return LLMResult(text="", provider="gemini", error="no candidates returned")
-
-    cand = candidates[0]
-    parts = (cand.get("content") or {}).get("parts") or []
-    text = "".join(p.get("text", "") for p in parts)
-
-    meta = cand.get("groundingMetadata") or {}
-    sources: list[Source] = []
-    seen: set[str] = set()
-    for chunk in meta.get("groundingChunks") or []:
-        web = chunk.get("web") or {}
-        uri = resolve_url(web.get("uri", ""))
-        if not uri or uri in seen:
-            continue
-        seen.add(uri)
-        sources.append(
-            Source(
-                url=uri,
-                title=web.get("title", "") or uri,
-                publisher=web.get("domain", "") or _domain(uri),
-            )
-        )
-
-    return LLMResult(
-        text=text,
-        sources=sources,
-        queries=list(meta.get("webSearchQueries") or []),
-        provider="gemini",
-    )
-
-
-def _domain(url: str) -> str:
-    m = re.match(r"https?://([^/]+)", url or "")
-    return m.group(1).replace("www.", "") if m else ""
-
-
-# --------------------------------------------------------------------------
-# Groq — drafting and critique
+# Providers
 # --------------------------------------------------------------------------
 
 def groq_available() -> bool:
     return bool(config.GROQ_API_KEY)
 
 
+def gemini_available() -> bool:
+    return bool(config.GEMINI_API_KEY)
+
+
 def groq_chat(prompt: str, system: str | None = None, json_mode: bool = False) -> str:
     if not groq_available():
         raise LLMUnavailable("GROQ_API_KEY is not set")
-
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -218,7 +140,7 @@ def groq_chat(prompt: str, system: str | None = None, json_mode: bool = False) -
     payload: dict[str, Any] = {
         "model": config.GROQ_MODEL,
         "messages": messages,
-        "temperature": 0.4,
+        "temperature": 0.35,
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
@@ -234,37 +156,125 @@ def groq_chat(prompt: str, system: str | None = None, json_mode: bool = False) -
     return data["choices"][0]["message"]["content"]
 
 
+def gemini_chat(prompt: str, system: str | None = None) -> str:
+    if not gemini_available():
+        raise LLMUnavailable("GEMINI_API_KEY is not set")
+    payload: dict[str, Any] = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.35},
+    }
+    if system:
+        payload["systemInstruction"] = {"parts": [{"text": system}]}
+
+    data = _post(
+        config.GEMINI_URL.format(model=config.GEMINI_MODEL),
+        payload,
+        headers={
+            "x-goog-api-key": config.GEMINI_API_KEY,
+            "Content-Type": "application/json",
+        },
+    )
+    cand = (data.get("candidates") or [{}])[0]
+    parts = (cand.get("content") or {}).get("parts") or []
+    return "".join(p.get("text", "") for p in parts)
+
+
+def _generate(prompt: str, system: str | None, json_mode: bool) -> tuple[str, str]:
+    """Groq first, Gemini as fallback. Returns (text, provider)."""
+    errors = []
+    if groq_available():
+        try:
+            return groq_chat(prompt, system=system, json_mode=json_mode), "groq"
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"groq: {exc}")
+    if gemini_available():
+        try:
+            return gemini_chat(prompt, system=system), "gemini"
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"gemini: {exc}")
+    raise RuntimeError("all providers failed -> " + " | ".join(errors))
+
+
 # --------------------------------------------------------------------------
-# Capability-oriented helpers used by the agents
+# Capability helpers used by the agents
 # --------------------------------------------------------------------------
 
-def research_json(prompt: str, system: str | None = None) -> tuple[Any, LLMResult]:
-    """Grounded research that must return JSON. Gemini only (needs citations)."""
-    result = gemini_grounded(prompt, system=system)
-    if result.error:
-        raise RuntimeError(result.error)
-    return extract_json(result.text), result
+def hit_to_source(hit: Hit) -> Source:
+    return Source(url=hit.url, title=hit.title, publisher=hit.publisher or hit.domain)
+
+
+def sources_from_indexes(hits: list[Hit], indexes: Any) -> list[Source]:
+    """Map model-supplied evidence indexes back to URLs we actually retrieved."""
+    out: list[Source] = []
+    seen: set[str] = set()
+    for idx in indexes or []:
+        try:
+            hit = hits[int(idx)]
+        except (TypeError, ValueError, IndexError):
+            continue
+        if hit.url in seen:
+            continue
+        seen.add(hit.url)
+        out.append(hit_to_source(hit))
+    return out
+
+
+CITE_RULES = """
+CITATION RULES (strict):
+- You may ONLY use information present in the EVIDENCE block above.
+- Cite by evidence index. Never write a URL yourself.
+- If the evidence does not support something, leave it out. Do not fill gaps
+  from memory. Returning less is correct; inventing detail is not.
+"""
+
+
+def research_json(
+    prompt: str,
+    queries: list[str],
+    system: str | None = None,
+    enrich_top: int = 5,
+) -> tuple[Any, LLMResult]:
+    """Retrieve first, then reason over the retrieved evidence."""
+    hits = search(queries)
+    if hits:
+        enrich(hits, top_n=enrich_top)
+
+    full_prompt = (
+        f"EVIDENCE (numbered - cite these by index):\n{evidence_block(hits)}\n\n"
+        f"{CITE_RULES}\n\n{prompt}"
+    )
+    text, provider = _generate(full_prompt, system, json_mode=True)
+    result = LLMResult(
+        text=text,
+        hits=hits,
+        sources=[hit_to_source(h) for h in hits],
+        queries=queries,
+        provider=provider,
+    )
+    return extract_json(text), result
 
 
 def draft_json(prompt: str, system: str | None = None) -> Any:
-    """Non-grounded structured generation. Groq preferred, Gemini fallback."""
-    if groq_available():
-        return extract_json(groq_chat(prompt, system=system, json_mode=True))
-    if gemini_available():
-        return extract_json(gemini_grounded(prompt, system=system).text)
-    raise LLMUnavailable("no provider available for drafting")
+    """Non-retrieval structured generation (composer, critic, signal extractor)."""
+    text, _ = _generate(prompt, system, json_mode=True)
+    return extract_json(text)
 
 
 def provider_status() -> dict[str, Any]:
     return {
-        "gemini": {
-            "configured": gemini_available(),
-            "model": config.GEMINI_MODEL,
-            "role": "grounded research + citations",
-        },
         "groq": {
             "configured": groq_available(),
             "model": config.GROQ_MODEL,
-            "role": "email drafting + critic loop",
+            "role": "primary generation (research reasoning, drafting, critic)",
+        },
+        "gemini": {
+            "configured": gemini_available(),
+            "model": config.GEMINI_MODEL,
+            "role": "fallback generation",
+        },
+        "retrieval": {
+            "configured": True,
+            "model": "Bing RSS + Wikipedia (keyless)",
+            "role": "evidence retrieval - all citations originate here",
         },
     }

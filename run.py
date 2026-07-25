@@ -14,74 +14,104 @@ import sys
 import requests
 
 from src import config
-from src.llm import gemini_available, groq_available, provider_status
+from src.llm import (
+    gemini_available,
+    gemini_chat,
+    groq_available,
+    groq_chat,
+    provider_status,
+)
 from src.orchestrator import run_pipeline, write_results
+from src.search import search
 
 
 def check() -> int:
+    """Validate by actually calling each dependency.
+
+    An earlier version only *listed* models, which passed happily on a model the
+    API then rejected at call time with "no longer available to new users".
+    Listing is not validation — every check here issues a real request.
+    """
     status = provider_status()
-    print("Provider status\n" + "-" * 60)
+    print("Provider status\n" + "-" * 66)
     for name, info in status.items():
         mark = "OK " if info["configured"] else "-- "
-        print(f"[{mark}] {name:8} model={info['model']:32} {info['role']}")
+        print(f"[{mark}] {name:10} {info['model']:34} {info['role']}")
     print()
 
     ok = True
 
-    if gemini_available():
-        try:
-            resp = requests.get(
-                "https://generativelanguage.googleapis.com/v1beta/models",
-                headers={"x-goog-api-key": config.GEMINI_API_KEY},
-                timeout=30,
-            )
-            resp.raise_for_status()
-            names = [
-                m["name"].split("/")[-1]
-                for m in resp.json().get("models", [])
-                if "generateContent" in (m.get("supportedGenerationMethods") or [])
-            ]
-            hit = config.GEMINI_MODEL in names
-            print(f"Gemini reachable. {len(names)} models available.")
-            print(f"  configured model '{config.GEMINI_MODEL}': {'FOUND' if hit else 'NOT FOUND'}")
-            if not hit:
-                ok = False
-                flash = [n for n in names if "flash" in n and "2." in n][:5]
-                print(f"  try one of: {flash or names[:5]}")
-        except Exception as exc:  # noqa: BLE001
+    # --- retrieval: the source of every citation ---------------------------
+    try:
+        hits = search(["Codelco copper Chile operations"], per_query=5)
+        if hits:
+            print(f"Retrieval OK. {len(hits)} results, e.g. {hits[0].domain}")
+        else:
             ok = False
-            print(f"Gemini check FAILED: {exc}")
-    else:
+            print("Retrieval returned NOTHING - citations would be impossible.")
+    except Exception as exc:  # noqa: BLE001
         ok = False
-        print("GEMINI_API_KEY not set - grounded research will not run.")
+        print(f"Retrieval FAILED: {exc}")
 
-    print()
-
+    # --- generation: issue a real completion, not a model list -------------
     if groq_available():
         try:
-            resp = requests.get(
-                "https://api.groq.com/openai/v1/models",
-                headers={"Authorization": f"Bearer {config.GROQ_API_KEY}"},
-                timeout=30,
-            )
-            resp.raise_for_status()
-            names = [m["id"] for m in resp.json().get("data", [])]
-            hit = config.GROQ_MODEL in names
-            print(f"Groq reachable. {len(names)} models available.")
-            print(f"  configured model '{config.GROQ_MODEL}': {'FOUND' if hit else 'NOT FOUND'}")
-            if not hit:
-                ok = False
-                print(f"  available: {names[:8]}")
+            groq_chat("Reply with the single word: ready", json_mode=False)
+            print(f"Groq OK. '{config.GROQ_MODEL}' answered a live request.")
         except Exception as exc:  # noqa: BLE001
             ok = False
-            print(f"Groq check FAILED: {exc}")
+            print(f"Groq FAILED on '{config.GROQ_MODEL}': {str(exc)[:160]}")
+            _suggest_groq()
     else:
+        print("GROQ_API_KEY not set - will fall back to Gemini.")
+
+    if gemini_available():
+        try:
+            gemini_chat("Reply with the single word: ready")
+            print(f"Gemini OK. '{config.GEMINI_MODEL}' answered a live request.")
+        except Exception as exc:  # noqa: BLE001
+            print(f"Gemini fallback unavailable on '{config.GEMINI_MODEL}': {str(exc)[:160]}")
+            _suggest_gemini()
+    else:
+        print("GEMINI_API_KEY not set - no fallback provider.")
+
+    if not groq_available() and not gemini_available():
         ok = False
-        print("GROQ_API_KEY not set - drafting will fall back to Gemini.")
 
     print()
     print("READY" if ok else "NOT READY - fix the items above, then re-run --check")
     return 0 if ok else 1
+
+
+def _suggest_groq() -> None:
+    try:
+        resp = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {config.GROQ_API_KEY}"},
+            timeout=30,
+        )
+        names = [m["id"] for m in resp.json().get("data", [])]
+        print(f"  models on this key: {names[:8]}")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _suggest_gemini() -> None:
+    try:
+        resp = requests.get(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            headers={"x-goog-api-key": config.GEMINI_API_KEY},
+            timeout=30,
+        )
+        names = [
+            m["name"].split("/")[-1]
+            for m in resp.json().get("models", [])
+            if "generateContent" in (m.get("supportedGenerationMethods") or [])
+        ]
+        flash = [n for n in names if "flash" in n][:6]
+        print(f"  try: {flash or names[:6]}  (note: listed != callable)")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def main() -> int:

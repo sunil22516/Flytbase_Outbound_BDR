@@ -9,7 +9,7 @@ so nothing inferred is ever presented as verified.
 from __future__ import annotations
 
 from ..config import BRIEF, CONTACTS_PER_ACCOUNT
-from ..llm import research_json
+from ..llm import research_json, sources_from_indexes
 from ..schemas import Contact, RunState
 from ..trace import Trace
 
@@ -43,7 +43,7 @@ Return ONLY JSON:
       "linkedin": "profile URL if you genuinely found one, else empty string",
       "email": "only if publicly published, else empty string",
       "email_status": "found | inferred | not_found",
-      "source_hint": "where this person appears publicly - be specific",
+      "source_indexes": [1],
       "why_this_person": "why THIS role owns the inspection/safety problem at THIS company",
       "confidence": "high | medium | low"
     }}
@@ -53,6 +53,8 @@ Return ONLY JSON:
 
 Rules:
 - Up to {CONTACTS_PER_ACCOUNT} contacts. Fewer is fine. Zero is fine.
+- Every contact MUST carry source_indexes pointing at the evidence naming them.
+  A person you cannot tie to an evidence item does not go in the list.
 - Never fabricate a name, a title, a LinkedIn URL, or an email address.
 - Use email_status "inferred" ONLY if you are applying a company email pattern
   that you actually observed; never present an inferred address as found.
@@ -65,8 +67,14 @@ def run(state: RunState, trace: Trace) -> None:
         with trace.stage(
             "A5", f"Contact Mapper — {account.name}", inputs=account.name
         ) as rec:
+            queries = [
+                f"{account.name} leadership team executives management",
+                f"{account.name} head of operations gerente de operaciones",
+                f"{account.name} VP health safety HSE director seguridad",
+                f"{account.name} site director superintendente faena LinkedIn",
+            ]
             data, result = research_json(
-                _prompt(account.name, account.country), system=SYSTEM
+                _prompt(account.name, account.country), queries, system=SYSTEM
             )
             rec.searches = result.queries
             rec.sources_found = len(result.sources)
@@ -85,6 +93,7 @@ def run(state: RunState, trace: Trace) -> None:
                     status = "not_found"
 
                 conf = str(c.get("confidence", "low")).strip().lower()
+                cited = sources_from_indexes(result.hits, c.get("source_indexes"))
                 account.contacts.append(
                     Contact(
                         name=person,
@@ -95,7 +104,7 @@ def run(state: RunState, trace: Trace) -> None:
                         email=email,
                         email_status=status,  # type: ignore[arg-type]
                         why_this_person=str(c.get("why_this_person", "")).strip(),
-                        sources=list(result.sources),
+                        sources=cited,
                         confidence=conf if conf in {"high", "medium", "low"} else "low",
                     )
                 )

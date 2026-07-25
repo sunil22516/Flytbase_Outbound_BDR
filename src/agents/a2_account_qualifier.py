@@ -8,7 +8,7 @@ qualifying, and an AE needs to see the boundary of the ICP.
 from __future__ import annotations
 
 from ..config import TARGET_ACCOUNTS
-from ..llm import research_json
+from ..llm import draft_json
 from ..schemas import DimensionScore, RunState
 from ..trace import Trace
 
@@ -80,11 +80,11 @@ def run(state: RunState, trace: Trace) -> None:
             for c in state.candidates
         )
 
-        data, result = research_json(
+        # Scores against material A1 already retrieved — no new search round,
+        # which keeps the free-tier request budget for the deep per-account work.
+        data = draft_json(
             _prompt(icp_block, disqualifiers, candidates_block), system=SYSTEM
         )
-        rec.searches = result.queries
-        rec.sources_found = len(result.sources)
 
         by_name = {c.name.lower(): c for c in state.candidates}
         for row in data.get("scored") or []:

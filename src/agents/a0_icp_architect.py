@@ -59,11 +59,19 @@ Rules:
 """
 
 
+QUERIES = [
+    "SQM Sociedad Quimica y Minera Salar de Atacama lithium operations",
+    "SQM Chile lithium production capacity expansion capex",
+    "SQM mining safety HSE contractors inspection",
+    "SQM annual report operations sites Chile",
+]
+
+
 def run(state: RunState, trace: Trace) -> None:
     with trace.stage(
         "A0", "ICP Architect", inputs=f"reference account: {BRIEF.reference_account}"
     ) as rec:
-        data, result = research_json(PROMPT, system=SYSTEM)
+        data, result = research_json(PROMPT, QUERIES, system=SYSTEM)
         rec.searches = result.queries
         rec.sources_found = len(result.sources)
 
