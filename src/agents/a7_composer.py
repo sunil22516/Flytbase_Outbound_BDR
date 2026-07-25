@@ -23,6 +23,17 @@ SYSTEM = (
 )
 
 
+def _salutation_rule(contact: Contact) -> str:
+    """No verified person means no personal greeting — and no invented one."""
+    if contact.seniority == "role-targeted":
+        return (
+            "\nIMPORTANT: no individual has been verified for this role. Do NOT invent a\n"
+            "name and do NOT write a personal greeting. Open directly with the substance\n"
+            "(a sentence about the company), and address the function, not a person."
+        )
+    return f"\nAddress them by first name only in the greeting."
+
+
 def _prompt(account: Account, contact: Contact) -> str:
     verified = [c for c in account.research if not c.quarantined]
     research_block = "\n".join(f"- {c.text}" for c in verified[:12]) or "- (none)"
@@ -44,6 +55,7 @@ RECIPIENT
 - Title: {contact.title}
 - Company: {account.name} ({account.country}, {account.commodity})
 - Why this person owns the problem: {contact.why_this_person}
+{_salutation_rule(contact)}
 
 VERIFIED RESEARCH ON {account.name}:
 {research_block}

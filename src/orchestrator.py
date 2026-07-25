@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from . import config
 from .agents import (
@@ -41,21 +41,35 @@ PIPELINE = [
 ]
 
 
-def run_pipeline(verbose: bool = True) -> dict[str, Any]:
+def run_pipeline(
+    verbose: bool = True,
+    on_stage: Callable[[str, str, list], None] | None = None,
+) -> dict[str, Any]:
+    """Run the agent DAG.
+
+    `on_stage(code, label, records)` fires after each agent so a UI can show the
+    pipeline executing live rather than waiting for a final blob.
+    """
     state = RunState(brief=config.BRIEF)
     trace = Trace()
 
-    for code, label, module in PIPELINE:
+    for index, (code, label, module) in enumerate(PIPELINE):
         if verbose:
             print(f"[{code}] {label} ...", flush=True)
+        if on_stage:
+            on_stage(code, label, [])
+
         module.run(state, trace)
+
+        produced = [s for s in trace.stages if s.agent == code]
         if verbose:
-            recent = [s for s in trace.stages if s.agent == code]
-            for s in recent[-3:]:
+            for s in produced[-3:]:
                 mark = {"ok": "ok", "partial": "!", "failed": "X", "skipped": "-"}.get(
                     s.status, "?"
                 )
                 print(f"      [{mark}] {s.label}: {s.output_summary or s.error}", flush=True)
+        if on_stage:
+            on_stage(code, label, produced)
 
     return _assemble(state, trace)
 

@@ -310,6 +310,51 @@ a.tag:hover { background: var(--blue); color: #fff; }
   padding: 2px 6px; border: 1.5px solid var(--ink);
 }
 
+/* ---------------- collapsible sections ---------------- */
+.sec { border: 2.5px solid var(--ink); background: var(--paper); margin-top: 14px; }
+.sec > summary {
+  list-style: none; cursor: pointer; padding: 13px 15px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--cream); font-family: var(--pixel); font-size: 9px;
+  transition: background .1s;
+}
+.sec > summary::-webkit-details-marker { display: none; }
+.sec > summary:hover { background: var(--yellow); }
+.sec[open] > summary { border-bottom: 2.5px solid var(--ink); background: var(--yellow); }
+.sec-t { flex: 1; }
+.sec-n {
+  font-size: 7.5px; padding: 4px 7px; background: var(--paper);
+  border: 2px solid var(--ink); white-space: nowrap;
+}
+.sec-body { padding: 18px 16px; }
+
+/* chevron drawn in CSS so there is no icon dependency */
+.chev {
+  width: 0; height: 0; flex: 0 0 auto;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 7px solid var(--ink); transition: transform .12s steps(2);
+}
+details[open] > summary .chev { transform: rotate(180deg); }
+
+/* contacts become collapsibles too */
+details.contact { margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+details.contact > summary {
+  list-style: none; cursor: pointer; padding: 13px 15px;
+  display: flex; align-items: center; gap: 12px; background: var(--cream);
+}
+details.contact > summary::-webkit-details-marker { display: none; }
+details.contact > summary:hover { background: var(--blue-soft); }
+details.contact[open] > summary { border-bottom: 2.5px solid var(--ink); }
+.c-sum { flex: 1; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.c-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.dim-score { display: flex; gap: 9px; align-items: center; }
+
+.warnbox {
+  background: var(--yellow); border: 2.5px solid var(--ink);
+  padding: 11px 13px; font-size: 12.5px; margin-bottom: 15px;
+}
+
 /* scrollbar */
 .acct-list::-webkit-scrollbar { width: 12px; }
 .acct-list::-webkit-scrollbar-track { background: var(--cream); border-left: 2px solid var(--ink); }

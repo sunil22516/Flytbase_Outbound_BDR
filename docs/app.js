@@ -1,4 +1,6 @@
-/* BDR workspace — renders results.json produced by the agent pipeline. */
+/* BDR workspace — renders results.json produced by the agent pipeline.
+   Everything below the account header is collapsed by default; the reader
+   opens only what they need. */
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -13,6 +15,15 @@ const host = (u) => {
 };
 
 const scoreClass = (n) => (n >= 7 ? "" : n >= 5 ? "mid" : "low");
+
+/** Collapsible section. `open` controls the default state. */
+const section = (title, count, body, open = false) => `
+  <details class="sec"${open ? " open" : ""}>
+    <summary><span class="sec-t">${esc(title)}</span>${
+      count != null ? `<span class="sec-n">${esc(count)}</span>` : ""
+    }<span class="chev"></span></summary>
+    <div class="sec-body">${body}</div>
+  </details>`;
 
 let DATA = null;
 let activeAccount = 0;
@@ -37,10 +48,10 @@ function showNoData(err) {
     <div class="notice">
       <strong>No results yet.</strong><br />
       Run the pipeline to generate <code>docs/data/results.json</code>:<br /><br />
-      <code>python run.py --check</code> &nbsp;then&nbsp; <code>python run.py</code><br /><br />
-      <span class="small">If you are opening this file directly from disk, the browser blocks
-      the JSON fetch. Serve it instead: <code>python -m http.server -d docs 8080</code>.</span><br />
-      <span class="small muted">(${esc(err.message)})</span>
+      <code>python run.py --check</code> then <code>python run.py</code><br /><br />
+      <span class="small">Opening the file straight from disk blocks the JSON fetch.
+      Serve it: <code>python -m http.server -d docs 8080</code></span><br />
+      <span class="small">(${esc(err.message)})</span>
     </div>`;
 }
 
@@ -49,7 +60,7 @@ function showNoData(err) {
 function render() {
   const b = DATA.brief || {};
   $("#briefLine").innerHTML =
-    `<strong>${esc(b.target_vertical)}</strong> · anchored on ${esc(b.reference_account)} · ` +
+    `<strong>${esc(b.target_vertical)}</strong><br />anchored on ${esc(b.reference_account)} · ` +
     `targeting ${esc((b.goal_titles || []).join(", "))}`;
 
   const s = DATA.summary || {};
@@ -59,16 +70,15 @@ function render() {
     ["Rejected", s.accounts_rejected],
     ["Contacts", s.contacts_found],
     ["Emails", s.emails_generated],
-    ["Claims verified", `${s.claims_verified}/${s.claims_total}`],
+    ["Verified", `${s.claims_verified}/${s.claims_total}`],
     ["Sources", s.unique_sources],
   ]
     .map(([k, v]) => `<div class="stat"><b>${esc(v ?? "—")}</b><span>${esc(k)}</span></div>`)
     .join("");
 
   $("#footMeta").textContent =
-    `Generated ${DATA.generated_at} · ` +
-    `research: ${DATA.providers?.gemini?.model || "n/a"} (grounded) · ` +
-    `drafting: ${DATA.providers?.groq?.model || "n/a"}`;
+    `Generated ${DATA.generated_at} · retrieval: ${DATA.providers?.retrieval?.model || "n/a"} · ` +
+    `generation: ${DATA.providers?.groq?.model || "n/a"}`;
 
   renderAccounts();
   renderICP();
@@ -94,7 +104,7 @@ function wireTabs() {
 
 function renderAccounts() {
   const accounts = DATA.accounts || [];
-  $("#acctCount").textContent = `${accounts.length} ranked`;
+  $("#acctCount").textContent = `${accounts.length}`;
 
   $("#accountList").innerHTML = accounts
     .map(
@@ -104,9 +114,10 @@ function renderAccounts() {
           <span class="acct-name">${esc(a.name)}</span>
           <span class="score ${scoreClass(a.fit_score)}">${a.fit_score.toFixed(1)}</span>
         </div>
-        <div class="acct-meta">${esc(a.country)} · ${esc(a.commodity)} ·
-          ${a.contacts.length} contact${a.contacts.length === 1 ? "" : "s"} ·
-          ${a.triggers.length} trigger${a.triggers.length === 1 ? "" : "s"}</div>
+        <div class="acct-meta">${esc(a.country)} · ${esc(a.commodity)}</div>
+        <div class="acct-meta">${a.contacts.length} contact${a.contacts.length === 1 ? "" : "s"} ·
+          ${a.triggers.length} trigger${a.triggers.length === 1 ? "" : "s"} ·
+          ${a.research.filter((c) => !c.quarantined).length} facts</div>
       </button>`
     )
     .join("");
@@ -117,6 +128,7 @@ function renderAccounts() {
       $$(".acct").forEach((x) => x.classList.remove("is-active"));
       el.classList.add("is-active");
       renderDetail();
+      $("#detail").scrollIntoView({ behavior: "smooth", block: "start" });
     })
   );
 
@@ -142,13 +154,15 @@ function renderDetail() {
   const a = (DATA.accounts || [])[activeAccount];
   if (!a) return;
 
+  const verified = a.research.filter((c) => !c.quarantined);
+
   const dims = a.dimension_scores
     .map(
       (d) => `
       <div class="dim">
-        <div><div class="dim-name">${esc(d.dimension)}</div></div>
+        <div class="dim-name">${esc(d.dimension)}</div>
         <div class="dim-why">${esc(d.rationale)}</div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div class="dim-score">
           <div class="bar"><i style="width:${Math.max(0, Math.min(100, d.score * 10))}%"></i></div>
           <span class="score ${scoreClass(d.score)}">${d.score}</span>
         </div>
@@ -168,8 +182,8 @@ function renderDetail() {
         </div>`
         )
         .join("")
-    : `<p class="muted small">No dated trigger event found. Outreach for this account
-       falls back to profile-based personalisation, which is weaker — consider deprioritising.</p>`;
+    : `<p class="muted small">No dated trigger found. Outreach falls back to
+       profile-based personalisation, which is weaker — consider deprioritising.</p>`;
 
   const claims = a.research
     .map(
@@ -188,8 +202,7 @@ function renderDetail() {
 
   const contacts = a.contacts.length
     ? a.contacts.map(contactCard).join("")
-    : `<p class="muted small">No verifiable contact found for this account. The system
-       returns nothing rather than guessing a name — see the run trace for the fix.</p>`;
+    : `<p class="muted small">No contact produced for this account.</p>`;
 
   $("#detail").innerHTML = `
     <div class="dhead">
@@ -197,46 +210,37 @@ function renderDetail() {
       <div class="tagrow">
         <span class="tag">${esc(a.country)}</span>
         <span class="tag">${esc(a.commodity)}</span>
-        <span class="tag">ICP fit ${a.fit_score.toFixed(1)} / 10</span>
-        ${a.website ? `<a class="tag" href="${esc(a.website)}" target="_blank" rel="noopener">website ↗</a>` : ""}
+        <span class="tag">FIT ${a.fit_score.toFixed(1)}/10</span>
+        ${a.website ? `<a class="tag" href="${esc(a.website)}" target="_blank" rel="noopener">SITE ↗</a>` : ""}
       </div>
-    </div>
-
-    <div class="block">
-      <h3>Why this account</h3>
       <div class="prose">${esc(a.fit_rationale)}</div>
     </div>
 
-    <div class="block">
-      <h3>ICP scoring breakdown</h3>
-      <span class="muted small">Each axis scored against the profile derived from the reference account.</span>
-      ${dims}
-    </div>
+    ${section("Contacts & outreach", a.contacts.length, contacts, true)}
+    ${section("Trigger events — why now", a.triggers.length, triggers, false)}
+    ${section("ICP scoring breakdown", a.dimension_scores.length, dims, false)}
+    ${section(
+      "Researched facts",
+      `${verified.length}/${a.research.length}`,
+      `<p class="muted small">Every fact links to its source. Greyed rows failed
+       verification and were kept out of the emails.</p>${claims}`,
+      false
+    )}`;
 
-    <div class="block">
-      <h3>Trigger events — why now</h3>
-      <span class="muted small">Dated, cited events that create demand for autonomous inspection.</span>
-      ${triggers}
-    </div>
+  wireCopy();
+}
 
-    <div class="block">
-      <h3>Research (${a.research.filter((c) => !c.quarantined).length} verified of ${a.research.length})</h3>
-      <span class="muted small">Every claim links to its source. Greyed rows failed verification and were kept out of the emails.</span>
-      ${claims}
-    </div>
-
-    <div class="block">
-      <h3>Contacts &amp; outreach</h3>
-      ${contacts}
-    </div>`;
-
+function wireCopy() {
   $$(".copy-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      const wrap = btn.closest(".email");
-      const text = `Subject: ${$(".email-subj", wrap).textContent.trim()}\n\n${$(".email-body", wrap).textContent.trim()}`;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const wrap = btn.closest(".contact");
+      const text =
+        `Subject: ${$(".email-subj", wrap).textContent.trim()}\n\n` +
+        `${$(".email-body", wrap).textContent.trim()}`;
       navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = "Copied";
-        setTimeout(() => (btn.textContent = "Copy email"), 1600);
+        btn.textContent = "COPIED";
+        setTimeout(() => (btn.textContent = "COPY EMAIL"), 1600);
       });
     })
   );
@@ -244,46 +248,52 @@ function renderDetail() {
 
 function contactCard(c) {
   const e = c.email_draft;
+  const roleOnly = c.seniority === "role-targeted";
+
   const objections = (e?.objections || [])
     .map((o) => `<div class="obj"><b>${esc(o.objection)}</b><span>${esc(o.response)}</span></div>`)
     .join("");
 
+  const inner = `
+    ${roleOnly
+      ? `<div class="warnbox">No individual could be verified for this role from public
+         sources. This is <strong>role-targeted outreach</strong>, not a named contact —
+         the system does not invent people.</div>`
+      : ""}
+    <div class="kv"><b>Why this person</b>${esc(c.why_this_person)}</div>
+    ${citeRow(c.sources)}
+
+    ${e ? `
+      <div class="email">
+        <div class="email-subj">${esc(e.subject)}</div>
+        <div class="email-body">${esc(e.body)}</div>
+        <div class="email-foot">
+          <button class="btn copy-btn">COPY EMAIL</button>
+          <span>Critic ${e.critic_score}/10${e.revisions ? ` · revised ${e.revisions}×` : ""}</span>
+        </div>
+      </div>
+      ${e.proof_point_used ? `<div class="kv" style="margin-top:16px"><b>Proof point chosen</b>${esc(e.proof_point_used)}</div>` : ""}
+      ${e.call_opener ? `<div class="kv"><b>Cold-call opener</b>${esc(e.call_opener)}</div>` : ""}
+      ${objections ? `<div class="kv"><b>Likely objections</b>${objections}</div>` : ""}
+    ` : `<p class="muted small">No email generated — see the run trace.</p>`}`;
+
   return `
-    <div class="contact">
-      <div class="contact-head">
-        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+    <details class="contact">
+      <summary>
+        <div class="c-sum">
           <div>
             <div class="contact-name">${esc(c.name)}</div>
-            <div class="contact-title">${esc(c.title)}${c.seniority ? ` · ${esc(c.seniority)}` : ""}</div>
+            <div class="contact-title">${esc(c.title)}</div>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span class="badge ${esc(c.email_status)}">email ${esc(c.email_status.replace("_", " "))}</span>
-            ${c.linkedin ? `<a class="cite" href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : ""}
+          <div class="c-badges">
+            <span class="badge ${esc(c.email_status)}">${esc(c.email_status.replace("_", " "))}</span>
+            ${e ? `<span class="badge ok">email ready</span>` : ""}
           </div>
         </div>
-        ${c.email ? `<div class="muted small" style="margin-top:6px">${esc(c.email)}</div>` : ""}
-        ${citeRow(c.sources)}
-      </div>
-
-      <div class="contact-body">
-        <div class="kv"><b>Why this person</b>${esc(c.why_this_person)}</div>
-
-        ${e ? `
-          <div class="email">
-            <div class="email-subj">${esc(e.subject)}</div>
-            <div class="email-body">${esc(e.body)}</div>
-            <div class="email-foot">
-              <button class="btn copy-btn">Copy email</button>
-              <span>Critic ${e.critic_score}/10${e.revisions ? ` · revised ${e.revisions}×` : ""}</span>
-              ${e.proof_point_used ? `<span>· Proof point: ${esc(e.proof_point_used)}</span>` : ""}
-            </div>
-          </div>
-
-          ${e.call_opener ? `<div class="kv" style="margin-top:14px"><b>Cold-call opener</b>${esc(e.call_opener)}</div>` : ""}
-          ${objections ? `<div class="kv" style="margin-top:6px"><b>Likely objections</b>${objections}</div>` : ""}
-        ` : `<p class="muted small">No email generated for this contact — see the run trace.</p>`}
-      </div>
-    </div>`;
+        <span class="chev"></span>
+      </summary>
+      <div class="contact-body">${inner}</div>
+    </details>`;
 }
 
 /* ---------------- icp / rejected / trace ---------------- */
@@ -299,15 +309,11 @@ function renderICP() {
     .map(
       (d) => `
       <div class="dim">
-        <div>
-          <div class="dim-name">${esc(d.name)}</div>
-          <div class="muted small">weight ${d.weight}</div>
+        <div class="dim-name">${esc(d.name)}<div class="muted small">weight ${d.weight}</div></div>
+        <div class="dim-why">${esc(d.description)}
+          <div class="muted small" style="margin-top:5px"><strong>SQM:</strong> ${esc(d.reference_value)}</div>
         </div>
-        <div class="dim-why">
-          ${esc(d.description)}
-          <div class="muted small" style="margin-top:4px"><strong>Reference:</strong> ${esc(d.reference_value)}</div>
-        </div>
-        <div class="bar"><i style="width:${Math.round(d.weight * 100 / 0.35 * 1)}%"></i></div>
+        <div class="dim-score"><div class="bar"><i style="width:${Math.min(100, d.weight * 400)}%"></i></div></div>
       </div>`
     )
     .join("");
@@ -335,40 +341,46 @@ function renderTrace() {
   const t = DATA.trace;
   if (!t) return;
 
-  $("#traceCounts").innerHTML = [
-    ["ok", t.counts.ok],
-    ["partial", t.counts.partial],
-    ["failed", t.counts.failed],
-    ["skipped", t.counts.skipped],
-  ]
-    .map(([k, v]) => `<span class="badge ${k}">${k}: ${v}</span>`)
-    .join("") + `<span class="badge skipped">total ${t.total_duration_s}s</span>`;
+  $("#traceCounts").innerHTML =
+    [["ok", t.counts.ok], ["partial", t.counts.partial], ["failed", t.counts.failed], ["skipped", t.counts.skipped]]
+      .map(([k, v]) => `<span class="badge ${k}">${k} ${v}</span>`)
+      .join("") + `<span class="badge skipped">${t.total_duration_s}s total</span>`;
 
-  $("#traceList").innerHTML = t.stages
-    .map(
-      (s) => `
-      <div class="stage">
-        <div class="stage-code">${esc(s.agent)}</div>
-        <div>
-          <div class="stage-label">${esc(s.label)} <span class="badge ${esc(s.status)}">${esc(s.status)}</span></div>
-          ${s.output_summary ? `<div class="stage-out">${esc(s.output_summary)}</div>` : ""}
-          ${s.searches?.length ? `<div class="muted small">searched: ${esc(s.searches.slice(0, 3).join(" · "))}</div>` : ""}
-          ${s.sources_found ? `<div class="muted small">${s.sources_found} sources returned</div>` : ""}
-          ${s.error ? `<div class="stage-err">${esc(s.error)}</div>` : ""}
-          ${s.fix ? `<div class="stage-fix"><strong>How we'd fix it:</strong> ${esc(s.fix)}</div>` : ""}
-          ${(s.notes || []).map((n) => `<div class="muted small">${esc(n)}</div>`).join("")}
-        </div>
-        <div class="stage-time">${s.duration_s}s</div>
-      </div>`
-    )
+  const byAgent = {};
+  t.stages.forEach((s) => (byAgent[s.agent] = byAgent[s.agent] || []).push(s));
+
+  $("#traceList").innerHTML = Object.entries(byAgent)
+    .map(([agent, stages]) => {
+      const bad = stages.filter((s) => s.status !== "ok").length;
+      const rows = stages
+        .map(
+          (s) => `
+        <div class="stage">
+          <div>
+            <div class="stage-label">${esc(s.label)} <span class="badge ${esc(s.status)}">${esc(s.status)}</span></div>
+            ${s.output_summary ? `<div class="stage-out">${esc(s.output_summary)}</div>` : ""}
+            ${s.searches?.length ? `<div class="muted small">queries: ${esc(s.searches.slice(0, 3).join(" · "))}</div>` : ""}
+            ${s.sources_found ? `<div class="muted small">${s.sources_found} sources retrieved</div>` : ""}
+            ${s.error ? `<div class="stage-err">${esc(s.error)}</div>` : ""}
+            ${s.fix ? `<div class="stage-fix"><strong>How we'd fix it:</strong> ${esc(s.fix)}</div>` : ""}
+            ${(s.notes || []).map((n) => `<div class="muted small">${esc(n)}</div>`).join("")}
+          </div>
+          <div class="stage-time">${s.duration_s}s</div>
+        </div>`
+        )
+        .join("");
+      return section(
+        `${agent} — ${stages[0].label.split("—")[0].trim()}`,
+        bad ? `${bad} degraded` : "ok",
+        rows,
+        bad > 0
+      );
+    })
     .join("");
 
   $("#quarantineList").innerHTML = (t.quarantined || []).length
     ? t.quarantined
-        .map(
-          (q) => `<div class="qrow"><b>${esc(q.subject)}</b> — ${esc(q.claim)}
-                  <span>(${esc(q.reason)})</span></div>`
-        )
+        .map((q) => `<div class="qrow"><b>${esc(q.subject)}</b> — ${esc(q.claim)} <span>(${esc(q.reason)})</span></div>`)
         .join("")
     : `<p class="muted small">Nothing was quarantined — every claim resolved to a source.</p>`;
 }
