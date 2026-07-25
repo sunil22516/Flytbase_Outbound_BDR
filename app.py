@@ -418,9 +418,20 @@ with tab_acc:
                 if e:
                     st.markdown(f'<div class="subjbox">{e["subject"]}</div>', unsafe_allow_html=True)
                     st.markdown(f'<div class="emailbox">{e["body"]}</div>', unsafe_allow_html=True)
-                    st.caption(
-                        f"Critic {e['critic_score']}/10 · proof point: {e['proof_point_used']}"
-                    )
+                    # A score of 0 means the critic stage never ran (provider
+                    # cap), not that the draft scored zero. Showing "0.0/10"
+                    # under every email misreads as the system failing its own
+                    # quality bar.
+                    score = e.get("critic_score") or 0
+                    if score > 0:
+                        st.caption(
+                            f"Critic {score}/10 · proof point: {e['proof_point_used']}"
+                        )
+                    else:
+                        st.caption(
+                            f"Proof point: {e['proof_point_used']} · critic pass did not "
+                            "run for this draft (provider daily cap — see Run trace)"
+                        )
                     if e.get("call_opener"):
                         st.markdown(f"**Call opener:** {e['call_opener']}")
                     for o in e.get("objections", []):
