@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Outbound BDR Agent — Thinking Map</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fb;
+        --ink: #1f2430;
+        --ink-2: #535b6b;
+        --ink-3: #8a93a6;
+        --line: #e2e6ee;
+        --stage: #ffffff;
+        --decision: #fbebcf;
+        --decision-border: #e5bf77;
+        --route: #d8f0e4;
+        --route-border: #aedcc6;
+        --stop: #f8dce3;
+        --stop-border: #edacbd;
+        --note: #e6e0f4;
+        --note-border: #c9bee8;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 28px 18px 56px;
+      }
+
+      main { width: min(980px, 100%); margin: 0 auto; }
+
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 24px; letter-spacing: -0.03em; }
+
+      .sub {
+        margin-top: 6px; max-width: 760px;
+        color: var(--ink-2); font-size: 13px; line-height: 1.5;
+      }
+
+      .legend {
+        display: flex; flex-wrap: wrap; gap: 12px;
+        margin: 18px 0 26px; color: var(--ink-2); font-size: 11px;
+      }
+      .lg { display: inline-flex; align-items: center; gap: 6px; }
+      .sw {
+        width: 14px; height: 14px;
+        border: 1.5px solid var(--line); border-radius: 4px; background: #fff;
+      }
+      .sw.dec {
+        width: 12px; height: 12px;
+        border-color: var(--decision-border); background: var(--decision);
+        transform: rotate(45deg);
+      }
+      .sw.route { border-color: var(--route-border); background: var(--route); }
+      .sw.stop { border-color: var(--stop-border); background: var(--stop); }
+
+      .flow, .col, .branch-col {
+        display: flex; flex-direction: column; align-items: center;
+      }
+      .flow { gap: 0; }
+
+      .section {
+        width: 100%; margin: 26px 0 12px;
+        border-bottom: 1.5px solid var(--line); padding-bottom: 6px;
+        color: var(--ink-3); font-size: 11px; font-weight: 800;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+
+      .node, .decision, .route, .stop, .note {
+        width: min(620px, 100%); border-radius: 12px;
+        padding: 12px 15px; text-align: center;
+      }
+      .node { border: 1.5px solid var(--line); background: var(--stage); }
+      .decision { border: 1.5px solid var(--decision-border); background: var(--decision); }
+      .route { border: 1.5px solid var(--route-border); background: var(--route); }
+      .stop { border: 1.5px solid var(--stop-border); background: var(--stop); }
+      .note { border: 1.5px dashed var(--note-border); background: var(--note); }
+
+      .tag {
+        display: block; margin-bottom: 4px;
+        color: var(--ink-3); font-size: 9px; font-weight: 800;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .title { font-size: 14px; font-weight: 800; }
+      .desc { margin-top: 4px; color: var(--ink-2); font-size: 11px; line-height: 1.45; }
+
+      .slot {
+        margin-top: 9px; border: 1px dashed rgba(31, 36, 48, 0.28);
+        border-radius: 8px; background: rgba(255, 255, 255, 0.62);
+        padding: 9px 10px; color: var(--ink-2);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px; line-height: 1.45; text-align: left;
+      }
+
+      .arrow { position: relative; width: 2px; height: 22px; background: var(--ink-3); }
+      .arrow::after {
+        content: ""; position: absolute; bottom: -1px; left: -4px;
+        border-left: 5px solid transparent; border-right: 5px solid transparent;
+        border-top: 7px solid var(--ink-3);
+      }
+
+      .split {
+        margin: 5px 0; color: var(--ink-3); font-size: 10px;
+        font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+      }
+
+      .branch {
+        display: flex; flex-wrap: wrap; justify-content: center;
+        gap: 18px; width: 100%;
+      }
+      .branch-col { flex: 1; min-width: 260px; gap: 7px; }
+
+      .notes {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px; width: 100%;
+      }
+      .notes .note { min-height: 128px; }
+
+      /* --- additions to the scaffold ------------------------------------ */
+      .agents {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px; width: 100%;
+      }
+      .agents .node { width: 100%; text-align: left; padding: 11px 13px; }
+      .agents .title { font-size: 12.5px; }
+      .agents .desc { font-size: 10.5px; }
+      .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px; color: var(--ink-3);
+      }
+      .stats {
+        display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px; width: 100%; margin-bottom: 12px;
+      }
+      .stat {
+        border: 1.5px solid var(--line); border-radius: 10px;
+        background: #fff; padding: 10px; text-align: center;
+      }
+      .stat b { display: block; font-size: 19px; letter-spacing: -0.02em; }
+      .stat span {
+        display: block; margin-top: 2px; color: var(--ink-3);
+        font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .branch-col .stop, .branch-col .node, .branch-col .route { width: 100%; }
+
+      @media (max-width: 760px) {
+        .branch-col, .notes, .agents, .stats {
+          min-width: 100%; grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Outbound BDR Agent — Thinking Map</h1>
+      <p class="sub">
+        One campaign brief goes in. Nine specialist agents hand off to each other and
+        produce a qualified account list, the people to contact, sourced research, and
+        a written email per contact. Every gate below is a real branch in the code —
+        including the ones that stop the pipeline rather than guess.
+      </p>
+
+      <div class="legend">
+        <span class="lg"><span class="sw"></span>Step</span>
+        <span class="lg"><span class="sw dec"></span>Decision</span>
+        <span class="lg"><span class="sw route"></span>Route</span>
+        <span class="lg"><span class="sw stop"></span>Stop</span>
+      </div>
+
+      <!-- ============================ DELEGATION ============================ -->
+      <div class="section" style="margin-top: 0">Delegation — nine agents, one job each</div>
+      <p class="sub" style="margin-bottom: 14px">
+        The core decision: not one prompt that does everything. Each agent owns a single
+        job, so a failure is attributable to a stage instead of degrading the whole answer.
+      </p>
+
+      <div class="agents">
+        <div class="node">
+          <span class="tag">A0</span>
+          <div class="title">ICP Architect</div>
+          <div class="desc">Deconstructs SQM into a weighted scorecard + disqualifiers.</div>
+          <div class="code">out: 6 dimensions</div>
+        </div>
+        <div class="node">
+          <span class="tag">A1</span>
+          <div class="title">Account Scout</div>
+          <div class="desc">Searches for real LatAm operators matching that profile.</div>
+          <div class="code">out: candidates</div>
+        </div>
+        <div class="node">
+          <span class="tag">A2</span>
+          <div class="title">Qualifier</div>
+          <div class="desc">Scores each candidate on the card. Rejects with a reason.</div>
+          <div class="code">gate: fit score</div>
+        </div>
+        <div class="node">
+          <span class="tag">A3</span>
+          <div class="title">Research Analyst</div>
+          <div class="desc">Retrieval per account. Atomic claims, each individually cited.</div>
+          <div class="code">out: claims + sources</div>
+        </div>
+        <div class="node">
+          <span class="tag">A4</span>
+          <div class="title">Signal Extractor</div>
+          <div class="desc">Turns claims into dated trigger events — the "why now".</div>
+          <div class="code">out: triggers</div>
+        </div>
+        <div class="node">
+          <span class="tag">A5</span>
+          <div class="title">Contact Mapper</div>
+          <div class="desc">Finds the humans who own inspection cost and crew exposure.</div>
+          <div class="code">gate: verifiable?</div>
+        </div>
+        <div class="node">
+          <span class="tag">A6</span>
+          <div class="title">Verifier / Fact Guard</div>
+          <div class="desc">Quarantines any claim it cannot tie to a retrieved URL.</div>
+          <div class="code">gate: sourced?</div>
+        </div>
+        <div class="node">
+          <span class="tag">A7</span>
+          <div class="title">Composer</div>
+          <div class="desc">One email per contact, from verified material only.</div>
+          <div class="code">out: subject + body</div>
+        </div>
+        <div class="node">
+          <span class="tag">A8</span>
+          <div class="title">Critic</div>
+          <div class="desc">Scores each draft and sends weak ones back for one rewrite.</div>
+          <div class="code">gate: pass mark</div>
+        </div>
+      </div>
+
+      <!-- ============================ MAIN FLOW ============================ -->
+      <section class="flow" aria-label="Solution flowchart">
+        <div class="section">Main Flow</div>
+
+        <div class="node">
+          <span class="tag">Entry</span>
+          <div class="title">Campaign brief — the only input</div>
+          <div class="slot">
+            vertical: large-scale lithium / copper / iron ore mining, LatAm<br />
+            reference: Sociedad Química y Minera de Chile (SQM)<br />
+            goal: Head of Operations · VP of HSE · Site Director<br />
+            angle: autonomous drone inspection replacing contracted crews
+          </div>
+        </div>
+        <div class="arrow"></div>
+
+        <div class="node">
+          <span class="tag">A0 · Move</span>
+          <div class="title">Model the ICP from the reference account</div>
+          <div class="desc">
+            SQM is not used as a keyword. It is decomposed into weighted, scoreable
+            dimensions so every later account is judged on the same card.
+          </div>
+          <div class="slot">
+            commodity &amp; extraction type 0.20 · 24/7 hazardous processing 0.20<br />
+            asset scale 0.15 · financial scale 0.15 · multi-site 0.15 · digital maturity 0.15<br />
+            + 4 hard disqualifiers (traders, no LatAm sites, sub-$100M, non-continuous)
+          </div>
+        </div>
+        <div class="arrow"></div>
+
+        <div class="node">
+          <span class="tag">A1 · Move</span>
+          <div class="title">Retrieve candidates, over-fetching on purpose</div>
+          <div class="desc">
+            Pulls target + 6 so the Qualifier has something to reject. One explicit retry
+            if the first pass abstains despite usable evidence.
+          </div>
+          <div class="slot">10 candidate accounts screened</div>
+        </div>
+        <div class="arrow"></div>
+
+        <div class="decision">
+          <span class="tag">A2 · Fork</span>
+          <div class="title">Does it clear the weighted ICP bar?</div>
+          <div class="slot">score each dimension → weighted total → apply disqualifiers</div>
+        </div>
+        <div class="split">rejected / qualified</div>
+
+        <div class="branch">
+          <div class="branch-col">
+            <div class="stop">
+              <span class="tag">Stop</span>
+              <div class="title">Rejected, with the reason recorded</div>
+              <div class="desc">
+                A scout that never says no is listing, not qualifying. Rejections stay
+                visible in the UI so the filter is auditable.
+              </div>
+              <div class="slot">
+                6 rejected · e.g. Vale S.A. — iron ore falls outside<br />
+                the target commodity set; Antofagasta — qualified<br />
+                but ranked below the cut at 8.9
+              </div>
+            </div>
+          </div>
+
+          <div class="branch-col">
+            <div class="node">
+              <span class="tag">Qualified</span>
+              <div class="title">4 accounts continue</div>
+              <div class="slot">Codelco 9.7 · Escondida 9.4 · Southern Copper 9.1 · SQM 9.1</div>
+            </div>
+            <div class="arrow"></div>
+            <div class="node">
+              <span class="tag">A3 → A4</span>
+              <div class="title">Research, then extract the "why now"</div>
+              <div class="desc">
+                Claims are atomic and separately cited, so the Fact Guard can quarantine
+                one bad claim instead of discarding a whole brief.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow"></div>
+
+        <div class="node">
+          <span class="tag">Retrieval contract</span>
+          <div class="title">The model is never allowed to write a URL</div>
+          <div class="desc">
+            Search runs first. The model receives a numbered evidence list of pages we
+            actually fetched and cites by index; we map indexes back to those URLs.
+            A fabricated citation is not discouraged — it is unrepresentable.
+          </div>
+          <div class="slot">
+            search(queries) → enrich(top 5, fetch page text) → evidence_block([0..n])<br />
+            model returns source_indexes:[0,2] → sources_from_indexes() → real URLs
+          </div>
+        </div>
+        <div class="arrow"></div>
+
+        <div class="decision">
+          <span class="tag">A5 · Fork</span>
+          <div class="title">Can a named person be verified for this seat?</div>
+          <div class="slot">public sources only — no invented people, ever</div>
+        </div>
+        <div class="split">not verifiable / verifiable</div>
+
+        <div class="branch">
+          <div class="branch-col">
+            <div class="stop">
+              <span class="tag">Degrade</span>
+              <div class="title">Role-targeted outreach, flagged in the UI</div>
+              <div class="desc">
+                The pipeline does not stop and does not guess. It writes to the role, tells
+                the reader it did, and the Composer is instructed not to invent a greeting.
+              </div>
+              <div class="slot">6 of 7 contacts fell to this path on the live run</div>
+            </div>
+          </div>
+          <div class="branch-col">
+            <div class="node">
+              <span class="tag">Named</span>
+              <div class="title">Named contact with sourced rationale</div>
+              <div class="slot">Jorge Gómez — CEO, Codelco (Reuters, codelco.com)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow"></div>
+
+        <div class="decision">
+          <span class="tag">A6 · Fork</span>
+          <div class="title">Is every claim tied to a page we retrieved?</div>
+          <div class="slot">the last gate before anything can be quoted in an email</div>
+        </div>
+        <div class="split">unsourced / sourced</div>
+
+        <div class="branch">
+          <div class="branch-col">
+            <div class="stop">
+              <span class="tag">Stop</span>
+              <div class="title">Quarantined — unquotable downstream</div>
+              <div class="desc">
+                Quarantined material is still shown, marked, so the reader can see what the
+                system refused to use.
+              </div>
+            </div>
+          </div>
+          <div class="branch-col">
+            <div class="node">
+              <span class="tag">Verified</span>
+              <div class="title">Passed to the Composer</div>
+              <div class="slot">8/8 claims verified · 0 quarantined · 6 contacts flagged</div>
+            </div>
+            <div class="arrow"></div>
+            <div class="decision">
+              <span class="tag">A7 → A8 · Fork</span>
+              <div class="title">Does the draft clear the critic's pass mark?</div>
+              <div class="slot">below mark → one rewrite → re-score</div>
+            </div>
+            <div class="arrow"></div>
+            <div class="route">
+              <span class="tag">Output</span>
+              <div class="title">What an AE picks up</div>
+              <div class="desc">
+                Per contact: subject, body, the one proof point chosen, a call opener, and
+                the two objections that persona will raise — with answers.
+              </div>
+              <div class="slot">results.json → live dashboard (Emails tab first)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================ PROOF ============================ -->
+        <div class="section">Proof — one real run, 487.2s end to end</div>
+
+        <div class="stats">
+          <div class="stat"><b>10</b><span>screened</span></div>
+          <div class="stat"><b>4</b><span>qualified</span></div>
+          <div class="stat"><b>6</b><span>rejected</span></div>
+          <div class="stat"><b>5</b><span>emails</span></div>
+          <div class="stat"><b>8/8</b><span>verified</span></div>
+          <div class="stat"><b>66</b><span>sources</span></div>
+        </div>
+
+        <div class="note">
+          <span class="tag">Signals</span>
+          <div class="title">Evidence this actually ran</div>
+          <div class="slot">
+            run.log — real timestamps and per-stage durations<br />
+            data/results.json — the artifact the dashboard renders<br />
+            Run trace tab — every stage with status, timing, error and fix<br />
+            no email text exists anywhere in source: subject/body come only from<br />
+            the model, and an empty draft fails the stage rather than falling back
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ NOTES ============================ -->
+      <section aria-label="Supporting notes">
+        <div class="section">Notes</div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag">Context</span>
+            <div class="slot">
+              Depth over breadth. The brief rewards strategic
+              insight, not volume, so the run qualifies a
+              handful of accounts properly rather than
+              listing fifty.
+
+              Retrieval is keyless (Bing RSS + Wikipedia)
+              so the system runs with no paid data vendor.
+            </div>
+          </div>
+          <div class="note">
+            <span class="tag">Edges</span>
+            <div class="slot">
+              Contact discovery is the weak stage. Named
+              ops/HSE leaders live on LinkedIn, behind auth,
+              and corporate leadership pages are JS-rendered.
+              The system refuses to invent a person, so it
+              degrades to role-targeted and says so.
+
+              3 of 4 accounts returned thin English-language
+              coverage and produced 0 claims.
+            </div>
+          </div>
+          <div class="note">
+            <span class="tag">Open</span>
+            <div class="slot">
+              Next: put a licensed contact provider (Apollo /
+              Cognism / Sales Navigator) behind A5 — the
+              verifier gate downstream is unchanged, so
+              nothing enters an email unsourced.
+
+              Then Spanish/Portuguese query variants in A3,
+              and paid provider tiers: both free tiers hit
+              their daily token cap mid-run.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
