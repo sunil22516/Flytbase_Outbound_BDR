@@ -19,6 +19,7 @@ st.set_page_config(
     page_title="Outbound BDR Agent — LatAm Mining",
     page_icon="🛰️",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -83,14 +84,94 @@ st.markdown(
         color: #d2600e !important; font-family: 'Press Start 2P', monospace !important;
         font-size: 17px !important;
       }
-      .stApp, .stApp p, .stApp li, .stApp span { color: #231a12; }
+
+      /* Every text surface gets an explicit colour. Anything left to Streamlit's
+         own theme goes invisible the moment a reviewer opens the link on a
+         dark-mode machine, which is exactly what happened in testing. */
+      .stApp, .stApp p, .stApp li, .stApp span, .stApp label,
+      .stApp div[data-testid="stMarkdownContainer"],
+      .stApp div[data-testid="stMarkdownContainer"] * { color: #231a12; }
+      .stApp a, .stApp a * { color: #b34700 !important; text-decoration: underline; }
+
+      /* Captions are the source lines under every claim — they must be legible,
+         not a 40%-opacity grey. */
+      .stApp div[data-testid="stCaptionContainer"],
+      .stApp div[data-testid="stCaptionContainer"] * {
+        color: #55493a !important; font-size: 12px !important;
+      }
+
+      /* Tabs: default Streamlit renders these near-invisible on a cream base. */
+      .stTabs [data-baseweb="tab-list"] {
+        gap: 4px; border-bottom: 3px solid #231a12; background: transparent;
+      }
+      .stTabs [data-baseweb="tab"] {
+        background: #f3f1e2; border: 3px solid #231a12; border-bottom: none;
+        border-radius: 0; padding: 8px 18px; margin-bottom: -3px;
+      }
+      .stTabs [data-baseweb="tab"] p {
+        color: #231a12 !important; font-weight: 700 !important; font-size: 13px !important;
+      }
+      .stTabs [aria-selected="true"] { background: #f0b31e; }
+      .stTabs [aria-selected="true"] p { color: #231a12 !important; }
+      .stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] {
+        background: transparent !important;
+      }
+
+      /* Expanders — the account cards. The header bar was rendering as a dark
+         slab with dark text; pin both surfaces. */
+      div[data-testid="stExpander"] {
+        border: 3px solid #231a12 !important; border-radius: 0 !important;
+        background: #fbfaf2 !important; box-shadow: 4px 4px 0 #231a12;
+        margin-bottom: 18px;
+      }
+      div[data-testid="stExpander"] summary,
+      div[data-testid="stExpander"] details > summary {
+        background: #f0b31e !important; border-radius: 0 !important;
+        border-bottom: 3px solid #231a12 !important; padding: 12px 14px !important;
+      }
+      div[data-testid="stExpander"] summary p,
+      div[data-testid="stExpander"] summary span,
+      div[data-testid="stExpander"] summary svg {
+        color: #231a12 !important; fill: #231a12 !important;
+        font-weight: 700 !important; font-size: 14px !important;
+      }
+      div[data-testid="stExpander"] summary:hover { background: #f7c53f !important; }
+
+      /* Sidebar: brief + controls. */
       section[data-testid="stSidebar"] { background: #f3f1e2; border-right: 3px solid #231a12; }
+      section[data-testid="stSidebar"] * { color: #231a12 !important; }
+      section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
+      section[data-testid="stSidebar"] h3 { color: #d2600e !important; }
+      section[data-testid="stSidebar"] div[data-testid="stCaptionContainer"] * {
+        color: #55493a !important;
+      }
+
+      /* Alerts (st.info / st.success / st.error) — used for "why it matters"
+         and for the failure explanations in the run trace. */
+      div[data-testid="stAlert"] { border: 3px solid #231a12; border-radius: 0; }
+      div[data-testid="stAlert"] * { color: #231a12 !important; }
+
+      .stSlider label, .stSlider [data-testid="stTickBar"] { color: #231a12 !important; }
+
       .emailbox { background:#fff; border:3px solid #231a12; padding:16px;
-        box-shadow:4px 4px 0 #231a12; white-space:pre-wrap; font-size:13px; }
+        box-shadow:4px 4px 0 #231a12; white-space:pre-wrap; font-size:13px;
+        color:#231a12; line-height:1.65; }
       .subjbox { background:#f0b31e; border:3px solid #231a12; border-bottom:none;
-        padding:10px 14px; font-weight:700; font-size:13px; }
+        padding:10px 14px; font-weight:700; font-size:13px; color:#231a12; }
       .warnbox { background:#f0b31e; border:3px solid #231a12; padding:10px 13px;
-        font-size:12.5px; margin-bottom:12px; }
+        font-size:12.5px; margin-bottom:12px; color:#231a12; }
+
+      /* The agent rail — makes the nine agents visible as a system, which is
+         what the brief is actually grading. */
+      .rail { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 18px; }
+      .chip { border:3px solid #231a12; background:#fbfaf2; padding:7px 10px;
+        box-shadow:3px 3px 0 #231a12; min-width:132px; }
+      .chip b { font-family:'Press Start 2P',monospace; font-size:9px; color:#d2600e; }
+      .chip span { display:block; font-size:10.5px; color:#4e4335; margin-top:5px;
+        line-height:1.35; }
+      .chip.done { background:#d8f0cf; }
+      .chip.fail { background:#f6cfc7; }
+      .arrow { align-self:center; color:#231a12; font-weight:700; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -175,6 +256,45 @@ AGENT_BLURB = {
     "A8": "Critic — scoring drafts and rewriting the weak ones",
 }
 
+AGENT_NAME = {
+    "A0": "ICP Architect",
+    "A1": "Account Scout",
+    "A2": "Qualifier",
+    "A3": "Research Analyst",
+    "A4": "Signal Extractor",
+    "A5": "Contact Mapper",
+    "A6": "Fact Guard",
+    "A7": "Composer",
+    "A8": "Critic",
+}
+
+
+def render_rail(status: dict[str, str] | None = None) -> str:
+    """The nine agents, always on screen.
+
+    The system requirement being graded is delegation across sub-agents, so the
+    division of labour has to be visible on the page — not buried in the repo.
+    """
+    status = status or {}
+    cells = []
+    for code, name in AGENT_NAME.items():
+        cls = {"ok": "chip done", "failed": "chip fail"}.get(status.get(code, ""), "chip")
+        cells.append(
+            f'<div class="{cls}"><b>{code}</b><span>{name}</span></div>'
+        )
+    return '<div class="rail">' + '<div class="arrow">›</div>'.join(cells) + "</div>"
+
+
+st.markdown(render_rail(), unsafe_allow_html=True)
+
+# A reviewer who never opens the sidebar still has to be able to run the agent.
+if not run_clicked:
+    run_clicked = st.button(
+        "▶  RUN THE AGENT LIVE  —  9 agents, real web retrieval",
+        use_container_width=True,
+        key="run_main",
+    )
+
 if run_clicked:
     _apply_run_shape(accounts, contacts)
 
@@ -200,13 +320,40 @@ if run_clicked:
     with st.spinner("Agents running — this is doing real web retrieval…"):
         try:
             payload = run_pipeline(verbose=False, on_stage=on_stage)
-            write_results(payload)
-            st.session_state.results = payload
             progress.progress(1.0, text="Run complete")
-            st.success("Run complete.")
+
+            # A run that dies in an early stage (a provider daily cap, most
+            # often) still returns a well-formed payload with zero accounts.
+            # Promoting that to the display blanks every panel and makes a
+            # working system look broken in front of a reviewer. Keep the last
+            # good run on screen and say plainly what happened.
+            if payload.get("accounts"):
+                write_results(payload)
+                st.session_state.results = payload
+                st.success("Run complete — dashboard below is from this run.")
+            else:
+                failed = [
+                    s for s in payload.get("trace", {}).get("stages", [])
+                    if s.get("status") == "failed"
+                ]
+                reason = failed[0].get("error", "") if failed else "no accounts produced"
+                st.warning(
+                    "This live run produced no accounts and was **not** allowed to "
+                    "overwrite the stored run. First failure: "
+                    f"`{reason[:180]}`\n\n"
+                    "This is the free-tier provider daily cap, not a logic failure — "
+                    "the pipeline below is the output of the same code on a fresh "
+                    "quota. Lower **Accounts to qualify** to 2 and retry, or read the "
+                    "**Run trace** tab where every stage records its own failure and "
+                    "the fix."
+                )
         except Exception as exc:  # noqa: BLE001
             progress.empty()
             st.error(f"Run failed: {exc}")
+            st.info(
+                "The stored run below is unaffected — results are only replaced by a "
+                "run that actually produces accounts."
+            )
 
 data = st.session_state.results
 

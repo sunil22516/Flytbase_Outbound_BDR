@@ -1,0 +1,18 @@
+# Pin the theme. Without this, Streamlit inherits the VIEWER's OS/browser dark
+# mode and paints near-white text on our cream panels — every tab label,
+# expander header and metric goes invisible on a reviewer's dark-mode machine.
+# The app must look identical for everyone who opens the link.
+[theme]
+base = "light"
+primaryColor = "#d2600e"
+backgroundColor = "#e9e7d2"
+secondaryBackgroundColor = "#f3f1e2"
+textColor = "#231a12"
+font = "monospace"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
