@@ -449,9 +449,56 @@ for col, (label, value) in zip(
 ):
     col.metric(label, value)
 
-tab_acc, tab_icp, tab_rej, tab_trace = st.tabs(
-    ["Accounts", "ICP", "Rejected", "Run trace"]
+tab_mail, tab_acc, tab_icp, tab_rej, tab_trace = st.tabs(
+    ["Emails", "Accounts", "ICP", "Rejected", "Run trace"]
 )
+
+
+# Stage 4 is the payoff of the whole pipeline, but it was reachable only by
+# expanding an account and scrolling past the triggers. Surface every draft
+# flat and first — this is the tab an AE actually works from.
+with tab_mail:
+    drafts = [
+        (a, c, c["email_draft"])
+        for a in data.get("accounts", [])
+        for c in a["contacts"]
+        if c.get("email_draft")
+    ]
+    st.caption(
+        f"{len(drafts)} email(s) written by A7 Composer from verified claims only, "
+        "then scored by A8 Critic. Nothing the fact guard quarantined is quotable "
+        "here."
+    )
+
+    for a, c, e in drafts:
+        st.markdown(f"### {c['name']} — {c['title']}")
+        st.caption(f"{a['name']} · {a['country']} · fit {a['fit_score']:.1f}/10")
+
+        if c.get("seniority") == "role-targeted":
+            st.markdown(
+                '<div class="warnbox">Role-targeted: no individual could be '
+                "verified for this seat from public sources, so the draft speaks "
+                "to the role. The system does not invent people.</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(f'<div class="subjbox">{e["subject"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="emailbox">{e["body"]}</div>', unsafe_allow_html=True)
+
+        score = e.get("critic_score") or 0
+        st.caption(
+            f"Proof point: {e['proof_point_used']}"
+            + (f" · critic {score}/10" if score > 0 else " · critic pass did not run")
+        )
+
+        if e.get("call_opener"):
+            st.markdown(f"**Call opener:** {e['call_opener']}")
+        for o in e.get("objections", []):
+            st.markdown(f"- **{o['objection']}** → {o['response']}")
+        st.divider()
+
+    if not drafts:
+        st.info("No emails in this run yet.")
 
 with tab_acc:
     for a in data.get("accounts", []):
