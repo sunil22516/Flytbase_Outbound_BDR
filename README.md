@@ -35,6 +35,46 @@ A single pipeline execution against **Latin American mining enterprises** — ta
 
 ---
 
+## 🎬 Demo
+
+<div align="center">
+
+[![▶ Watch the Full Demo](https://img.youtube.com/vi/InrGfEJbvuM/maxresdefault.jpg)](https://www.youtube.com/watch?v=InrGfEJbvuM)
+
+**[▶ Watch the Full Demo on YouTube](https://www.youtube.com/watch?v=InrGfEJbvuM)** — Live pipeline run from campaign brief to personalized emails
+
+</div>
+
+### Live Pipeline Execution
+
+Press one button — watch 9 agents execute in real time with live progress, search queries, and source retrieval:
+
+<div align="center">
+<img src="assets/liveRun.png" alt="9 agents executing in real time — ICP Architect through Critic Loop with live status updates" width="800"/>
+</div>
+
+<br/>
+
+### Results Dashboard
+
+Qualified accounts ranked by ICP fit score, with metrics strip showing 14 screened → 8 qualified → 16 emails → 36/46 verified:
+
+<div align="center">
+<img src="assets/Result.png" alt="Dashboard showing 14 screened, 8 qualified, 6 rejected, 16 emails, 36/46 verified claims, 58 sources — with ranked account cards for Rio Tinto, Vale, BHP, SQM" width="800"/>
+</div>
+
+<br/>
+
+### Source-Verified Research
+
+Every claim carries a clickable citation. Unsourced claims are quarantined by the deterministic fact guard — they never reach an email:
+
+<div align="center">
+<img src="assets/researchfacts.png" alt="Research claims with verified sources, clickable citation links, and quarantined unsourced claims" width="800"/>
+</div>
+
+---
+
 ## 🧠 The Core Problem — And Why This Approach Is Different
 
 The hard part of AI-driven outbound is **not** getting a model to write an email. It's making sure the email doesn't contain a single fabricated claim, a non-existent contact, or a dead URL — because one hallucinated fact destroys credibility on first contact.
