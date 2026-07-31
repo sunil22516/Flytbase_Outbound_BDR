@@ -1,13 +1,9 @@
 <div align="center">
 
-# 🛡️ Outbound BDR Agent
+# 🛡️ AI pipeline
+### A 9-Agent AI Pipeline That Writes Sales Email
 
-### A 9-Agent AI Pipeline That Writes Sales Emails It Can Prove
-
-*Every claim is source-verified. Every rejection is explained. Every failure is logged.*
-*Fabricated data doesn't get filtered out — it's **architecturally unrepresentable**.*
-
-**[Live Dashboard →](https://flytbase-outbound-bdr.vercel.app)** &nbsp;|&nbsp; **[Thinking Map →](docs/mindmap.html)** &nbsp;|&nbsp; **[Submission →](submission.md)**
+**[Live Dashboard →](https://flytbaseoutboundbdr-bdhnzdyirwxv6lix2kpcrr.streamlit.app/#outbound-bdr-agent-lat-am-mining)** &nbsp;|&nbsp; **[Thinking Map →](docs/mindmap.html)** &nbsp;|&nbsp; **[Submission →](submission.md)**
 
 </div>
 
@@ -27,12 +23,6 @@ A single pipeline execution against **Latin American mining enterprises** — ta
 | **Sources Retrieved** | 58 unique web sources, each carried as a clickable citation |
 | **Runtime** | ~6 minutes end-to-end (real web retrieval, not cached data) |
 
-> **Sample output** — generated email to Head of Operations at BHP:
->
-> *"BHP operates across multiple countries, including Australia and Canada. With $51.26 billion in revenue in 2025, optimizing costs is a priority. Contracted crews perform hazardous inspections at extraction sites, but autonomous drone inspection can replace these crews. Anglo American reduced inspection time by 70% and improved accuracy by 25% through autonomous inspection. We can discuss how autonomous inspection could work at BHP's copper sites in Chile."*
->
-> **Proof point selected:** Anglo American — chosen as the closest operational analogue for a copper producer. The composer evaluates three reference customers and picks *one* that fits; it doesn't name-drop all three.
-
 ---
 
 ## 🎬 Demo
@@ -44,6 +34,13 @@ A single pipeline execution against **Latin American mining enterprises** — ta
 *Live pipeline run — 9 agents execute from campaign brief to personalized emails*
 
 </div>
+### What Typically Goes Wrong
+
+| Approach | Failure Mode |
+|----------|-------------|
+| **Single mega-prompt** | LLM conflates research, qualification, and writing into one opaque step. You can't trace *which* claim is wrong or *why* a prospect was chosen. |
+| **"Cite your sources" in the prompt** | This is a *suggestion*, not a constraint. Models routinely fabricate plausible-looking URLs. |
+| **LLM-based fact-checker** | A language model validating another language model's output can hallucinate approval of its own hallucinations. |
 
 ### Live Pipeline Execution
 
@@ -75,18 +72,6 @@ Every claim carries a clickable citation. Unsourced claims are quarantined by th
 
 ---
 
-## 🧠 The Core Problem — And Why This Approach Is Different
-
-The hard part of AI-driven outbound is **not** getting a model to write an email. It's making sure the email doesn't contain a single fabricated claim, a non-existent contact, or a dead URL — because one hallucinated fact destroys credibility on first contact.
-
-### What Typically Goes Wrong
-
-| Approach | Failure Mode |
-|----------|-------------|
-| **Single mega-prompt** | LLM conflates research, qualification, and writing into one opaque step. You can't trace *which* claim is wrong or *why* a prospect was chosen. |
-| **"Cite your sources" in the prompt** | This is a *suggestion*, not a constraint. Models routinely fabricate plausible-looking URLs. |
-| **LLM-based fact-checker** | A language model validating another language model's output can hallucinate approval of its own hallucinations. |
-
 ### How This System Solves It
 
 **Three structural layers** make fabricated data architecturally impossible:
@@ -112,7 +97,6 @@ Layer 3: GRACEFUL DEGRADATION
 
 ## 🏗️ Architecture — Nine Specialist Agents
 
-Instead of one monolithic prompt, the pipeline is decomposed into **nine agents with typed data contracts**. Each agent has exactly one job, one guarantee, and one failure mode — all visible in the run trace.
 
 ```
                         ┌─────────────────────┐
@@ -229,65 +213,14 @@ streamlit run app.py
 
 ---
 
-## 📁 Project Structure
-
-```
-├── run.py                         # CLI entry point (--check validates APIs, then runs pipeline)
-├── app.py                         # Streamlit interactive dashboard with live agent execution
-├── requirements.txt               # Just requests + streamlit. That's it.
-├── .env.example                   # API keys + tunable parameters
-│
-├── src/
-│   ├── config.py                  # Campaign brief, proof points, company context
-│   ├── schemas.py                 # Typed state contracts (Source required on every Claim)
-│   ├── search.py                  # Keyless web retrieval (Bing RSS + Wikipedia + page fetcher)
-│   ├── llm.py                     # Provider abstraction + index→URL citation engine
-│   ├── trace.py                   # Per-stage execution telemetry + quarantine logging
-│   ├── orchestrator.py            # DAG runner + result assembly + overwrite guard
-│   └── agents/
-│       ├── a0_icp_architect.py    # Reference account → weighted ICP dimensions
-│       ├── a1_account_scout.py    # Candidate discovery with over-fetch strategy
-│       ├── a2_account_qualifier.py # Multi-axis scoring + rejection tracking
-│       ├── a3_research_analyst.py # Deep research → atomic claims with citations
-│       ├── a4_signal_extractor.py # Research → dated trigger events
-│       ├── a5_contact_mapper.py   # Executive discovery (refuses to fabricate)
-│       ├── a6_verifier.py         # DETERMINISTIC Python fact guard — no LLM
-│       ├── a7_composer.py         # Personalized emails + call openers + objections
-│       └── a8_critic.py           # Hard checks + rubric scoring + revision loop
-│
-├── data/
-│   └── results.json               # Full pipeline output artifact
-│
-└── docs/                          # Static dashboard (Vercel / GitHub Pages)
-    ├── index.html
-    ├── app.js
-    ├── styles.css
-    ├── mindmap.html               # Interactive architectural thinking map
-    └── data/results.json
-```
-
----
-
 ## 📈 Output Artifact
 
-Every run produces a single `results.json` containing the complete pipeline output:
-
-- ✅ Derived ICP with weighted dimensions and disqualifiers
-- ✅ Qualified accounts, ranked, with per-axis scoring and written rationale
-- ✅ Rejected accounts with explicit rejection reasons
-- ✅ Cited research claims with quarantine status
-- ✅ Dated trigger events mapped to the sales angle
-- ✅ Contacts with verification status (`found` / `inferred` / `not_found`)
-- ✅ Personalized email per contact + cold-call opener + objection handling
-- ✅ Full run trace: every stage, duration, searches issued, sources returned, failures, and written fixes
-
+Every run produces a single `results.json` containing the complete pipeline 
 The static dashboard in `docs/` renders this file directly. No build step. No framework.
 
 ---
 
 ## 🔍 Known Limitations & Engineering Trade-offs
-
-These are documented intentionally — the system handles each one explicitly rather than hiding it.
 
 | Limitation | Why It Exists | How The System Handles It | Production Fix |
 |-----------|--------------|--------------------------|---------------|
