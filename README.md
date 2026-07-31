@@ -39,9 +39,9 @@ A single pipeline execution against **Latin American mining enterprises** — ta
 
 <div align="center">
 
-[![▶ Watch the Full Demo](https://img.youtube.com/vi/InrGfEJbvuM/maxresdefault.jpg)](https://www.youtube.com/watch?v=InrGfEJbvuM)
+<video src="https://github.com/user-attachments/assets/a90e43eb-0d6e-49c4-9a65-29f29a644edc" controls width="800"></video>
 
-**[▶ Watch the Full Demo on YouTube](https://www.youtube.com/watch?v=InrGfEJbvuM)** — Live pipeline run from campaign brief to personalized emails
+*Live pipeline run — 9 agents execute from campaign brief to personalized emails*
 
 </div>
 
